@@ -48,6 +48,9 @@
 #include <std_msgs/Duration.h>
 #include <math.h>
 
+#include <actionlib/client/simple_action_client.h>
+#include <control_msgs/GripperCommandAction.h>
+
 /**
  * @brief RPYからクオータニオンを取得する関数
  *
@@ -94,20 +97,41 @@ int main(int argc, char** argv)
   // MoveIt operates on sets of joints called "planning groups" and stores them in an object called
   // the `JointModelGroup`. Throughout MoveIt the terms "planning group" and "joint model group"
   // are used interchangably.
-  static const std::string PLANNING_GROUP = "xarm6";
+  static const std::string PLANNING_GROUP_ARM = "xarm6";
+  //static const std::string PLANNING_GROUP_GRP = "xarm_gripper";
 
   // The :move_group_interface:`MoveGroup` class can be easily
   // setup using just the name of the planning group you would like to control and plan for.
-  moveit::planning_interface::MoveGroupInterface move_group(PLANNING_GROUP);
+  moveit::planning_interface::MoveGroupInterface move_group_arm(PLANNING_GROUP_ARM);
+  //moveit::planning_interface::MoveGroupInterface move_group_grp(PLANNING_GROUP_GRP);
 
   // 座標系をロボットのベースに基づいた「base_link」座標系を使う。
-  move_group.setPoseReferenceFrame("base_link"); // TODO コメントアウトしても動作するので、必要性を要確認。
+  move_group_arm.setPoseReferenceFrame("base_link"); // TODO コメントアウトしても動作するので、必要性を要確認。
+  //move_group_arm.setPoseReferenceFrame("base_link"); // TODO コメントアウトしても動作するので、必要性を要確認。
+
+  actionlib::SimpleActionClient<control_msgs::GripperCommandAction> gripper(
+      "/xarm/gripper_controller/gripper_cmd",
+      true
+      );
+  //gripper.waitForServer(); // TODO 実行すると応答がないが、動作は問題ない。
 
   // MoveIt!は「Named pose」というコンセプトを持つ。MoveIt!コンフィギュレーションに記載された名前付きポーズを指定できる。
   ROS_INFO("Moving to home pose");
-  move_group.setNamedTarget("home");
+  move_group_arm.setNamedTarget("home");
   // Targetを設定した後、移動命令を出す。
-  move_group.move();
+  move_group_arm.move();
+
+  ros::Duration(2).sleep();
+
+  ROS_INFO("Opening gripper");
+  control_msgs::GripperCommandGoal goal;
+  goal.command.position = 0.1;
+  gripper.sendGoal(goal);
+  bool finishedBeforeTimeout = gripper.waitForResult(ros::Duration(30));
+  if (!finishedBeforeTimeout) {
+    ROS_WARN("Gripper open action did not complete");
+    return 1;
+  }
 
   ros::Duration(2).sleep();
 
@@ -116,7 +140,7 @@ int main(int argc, char** argv)
   pose.header.frame_id = "base_link";
   pose.pose.position.x = 0.206873 + 0.25;
   pose.pose.position.y = 0.0;
-  pose.pose.position.z = 0.111828 + 0.5;
+  pose.pose.position.z = 0.111828 + 0.25;
   pose.pose.orientation.x = 1.0;
   pose.pose.orientation.y = 0.0;
   pose.pose.orientation.z = 0.0;
@@ -126,8 +150,8 @@ int main(int argc, char** argv)
   GetRPY(pose.pose.orientation, roll, pitch, yaw);
   ROS_INFO("roll = %f, pitch = %f, yaw = %f", roll, pitch, yaw);
 
-  move_group.setPoseTarget(pose);
-  if (!move_group.move()) {
+  move_group_arm.setPoseTarget(pose);
+  if (!move_group_arm.move()) {
     ROS_WARN("Could not move to cognition pose");
     return 1;
   }
@@ -150,29 +174,40 @@ int main(int argc, char** argv)
   pose.pose.orientation.w = 0.0;
 #endif
 
-  move_group.setPoseTarget(pose);
-  if (!move_group.move()) {
+  move_group_arm.setPoseTarget(pose);
+  if (!move_group_arm.move()) {
     ROS_WARN("Could not move to prepare pose");
     return 1;
   }
 
   ros::Duration(2).sleep();
 
-  ROS_INFO("Moving to home pose");
-  move_group.setNamedTarget("home");
-  // Targetを設定した後、移動命令を出す。
-  move_group.move();
-
-#if 0
-  move_group.setNamedTarget("cognition_pose");
-  move_group.move();
+  ROS_INFO("Closing gripper");
+  goal.command.position = 0.7;
+  gripper.sendGoal(goal);
+  finishedBeforeTimeout = gripper.waitForResult(ros::Duration(30));
+  if (!finishedBeforeTimeout) {
+    ROS_WARN("Gripper open action did not complete");
+    return 1;
+  }
 
   ros::Duration(2).sleep();
 
-  move_group.setNamedTarget("home");
-  move_group.move();
-#endif
+  ROS_INFO("Moving to home pose");
+  move_group_arm.setNamedTarget("home");
+  // Targetを設定した後、移動命令を出す。
+  move_group_arm.move();
 
+  ros::Duration(2).sleep();
+
+  ROS_INFO("Opening gripper");
+  goal.command.position = 0.1;
+  gripper.sendGoal(goal);
+  finishedBeforeTimeout = gripper.waitForResult(ros::Duration(30));
+  if (!finishedBeforeTimeout) {
+    ROS_WARN("Gripper open action did not complete");
+    return 1;
+  }
 
 #if 0
   // We will use the :planning_scene_interface:`PlanningSceneInterface`

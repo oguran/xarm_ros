@@ -31,8 +31,8 @@
 
   <exec_depend>xarm6_moveit_config</exec_depend>
   <exec_depend>pluginlib</exec_depend>
+  <exec_depend>actionlib</exec_depend>
   <exec_depend>moveit_core</exec_depend>
-  <exec_depend>moveit_commander</exec_depend>
   <exec_depend>moveit_fake_controller_manager</exec_depend>
   <exec_depend>moveit_ros_planning_interface</exec_depend>
   <exec_depend>moveit_ros_perception</exec_depend>
