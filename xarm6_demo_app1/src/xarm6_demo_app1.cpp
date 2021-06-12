@@ -133,61 +133,81 @@ class PickNPlacer {
           return;
         }
 
-        sub_ = node_handle.subscribe("/block", 1, &PickNPlacer::DoPick, this);
+        sub_ = node_handle.subscribe("/block", 1, &PickNPlacer::DoPickAndPlace, this);
         ROS_INFO("Subscribe prepared!");
+      }
+
+    bool DoPick(geometry_msgs::Pose::ConstPtr const& msg) {
+
+      ROS_INFO("Moving to reached pose");
+      geometry_msgs::PoseStamped pose;
+      pose.header.frame_id = "base_link";
+      pose.pose.position.x = msg->position.x;
+      pose.pose.position.y = msg->position.y;
+      pose.pose.position.z = msg->position.z;
+      pose.pose.orientation.x = msg->orientation.x;
+      pose.pose.orientation.y = msg->orientation.y;
+      pose.pose.orientation.z = msg->orientation.z;
+      pose.pose.orientation.w = msg->orientation.w;
+
+      arm_.setPoseTarget(pose);
+      ROS_INFO("Done setPoseTarget");
+      if (!arm_.move()) {
+        ROS_WARN("Could not move to prepare pose");
+        return false;
+      }
+      ROS_INFO("Done reaching");
+
+      ros::Duration(2).sleep();
+
+      ROS_INFO("Closing gripper");
+      control_msgs::GripperCommandGoal goal;
+      goal.command.position = 0.7;
+      gripper_.sendGoal(goal);
+      bool finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(30));
+      if (!finishedBeforeTimeout) {
+        ROS_WARN("Gripper close action did not complete");
+        return false;
+      }
+
+      return true;
     }
 
-      void DoPick(geometry_msgs::Pose::ConstPtr const& msg) {
-
-        ROS_INFO("Moving to reached pose");
-        geometry_msgs::PoseStamped pose;
-        pose.header.frame_id = "base_link";
-        pose.pose.position.x = msg->position.x;
-        pose.pose.position.y = msg->position.y;
-        pose.pose.position.z = msg->position.z;
-        pose.pose.orientation.x = msg->orientation.x;
-        pose.pose.orientation.y = msg->orientation.y;
-        pose.pose.orientation.z = msg->orientation.z;
-        pose.pose.orientation.w = msg->orientation.w;
-
-        arm_.setPoseTarget(pose);
-        ROS_INFO("Done setPoseTarget");
-        if (!arm_.move()) {
-          ROS_WARN("Could not move to prepare pose");
-          return;
-        }
-        ROS_INFO("Done reaching");
-
-        ros::Duration(2).sleep();
-
-        ROS_INFO("Closing gripper");
-        control_msgs::GripperCommandGoal goal;
-        goal.command.position = 0.7;
-        gripper_.sendGoal(goal);
-        bool finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(30));
-        if (!finishedBeforeTimeout) {
-          ROS_WARN("Gripper close action did not complete");
-          return;
-        }
-
-        ros::Duration(2).sleep();
-
-        ROS_INFO("Moving to home pose");
-        arm_.setNamedTarget("home");
-        // Targetを設定した後、移動命令を出す。
-        arm_.move();
-
-        ros::Duration(2).sleep();
-
-        ROS_INFO("Opening gripper");
-        goal.command.position = 0.1;
-        gripper_.sendGoal(goal);
-        finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(30));
-        if (!finishedBeforeTimeout) {
-          ROS_WARN("Gripper open action did not complete");
-          return;
-        }
+    void DoPlace() {
+      ROS_INFO("Moving to cognition pose");
+      geometry_msgs::PoseStamped pose = arm_.getPoseTarget(arm_.getEndEffectorLink().c_str());
+      pose.pose.position.z = 0.111828 + 0.3;
+      arm_.setPoseTarget(pose);
+      if (!arm_.move()) {
+        ROS_WARN("Could not move to cognition pose");
+        return;
       }
+
+      ros::Duration(2).sleep();
+
+      ROS_INFO("Opening gripper");
+      control_msgs::GripperCommandGoal goal;
+      goal.command.position = 0.1;
+      gripper_.sendGoal(goal);
+      bool finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(30));
+      if (!finishedBeforeTimeout) {
+        ROS_WARN("Gripper open action did not complete");
+        return;
+      }
+
+      ros::Duration(2).sleep();
+
+      ROS_INFO("Moving to home pose");
+      arm_.setNamedTarget("home");
+      // Targetを設定した後、移動命令を出す。
+      arm_.move();
+    }
+
+    void DoPickAndPlace(geometry_msgs::Pose::ConstPtr const& msg) {
+      if (DoPick(msg)) {
+        DoPlace();
+      }
+    }
 
   private:
     moveit::planning_interface::MoveGroupInterface arm_;
