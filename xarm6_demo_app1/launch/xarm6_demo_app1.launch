@@ -9,6 +9,9 @@
      value="gdb -x $(find panda_moveit_config)/launch/gdb_settings.gdb --ex run --args" />
 
   <node name="xarm6_demo_app1_node" pkg="xarm6_demo_app1" type="xarm6_demo_app1_node" respawn="false" launch-prefix="$(arg launch_prefix)" output="screen">
+    <param name="place_px" value="0.3"/>
+    <param name="place_py" value="-0.15"/>
+    <param name="place_pz" value="0.15"/>
   </node>
 
 </launch>

@@ -90,6 +90,14 @@ class PickNPlacer {
         // 座標系をロボットのベースに基づいた「base_link」座標系を使う。
         arm_.setPoseReferenceFrame("base_link");
 
+        ros::param::param<float>(
+            "~place_px", // parameter server上のparameter nameを指定。node namespace内のパラメータはprefixとして"~"を付ける。指定しない場合はglobal parameterとして扱われる。
+            place_px_,
+            0.206873 + 0.1 // 初期値.parameter serverに指定したパラメータがない場合はこの値が使用される。
+            );
+        ros::param::param<float>("~place_py", place_py_, 0.1);
+        ros::param::param<float>("~place_pz", place_pz_, 0.111828 + 0.1);
+
         // MoveIt!は「Named pose」というコンセプトを持つ。MoveIt!コンフィギュレーションに記載された名前付きポーズを指定できる。
         ROS_INFO("Moving to home pose");
         arm_.setNamedTarget("home");
@@ -151,9 +159,8 @@ class PickNPlacer {
       pose.pose.orientation.w = msg->orientation.w;
 
       arm_.setPoseTarget(pose);
-      ROS_INFO("Done setPoseTarget");
       if (!arm_.move()) {
-        ROS_WARN("Could not move to prepare pose");
+        ROS_WARN("Could not move to reached pose");
         return false;
       }
       ROS_INFO("Done reaching");
@@ -170,18 +177,38 @@ class PickNPlacer {
         return false;
       }
 
-      return true;
-    }
+      ros::Duration(2).sleep();
 
-    void DoPlace() {
-      ROS_INFO("Moving to cognition pose");
-      geometry_msgs::PoseStamped pose = arm_.getPoseTarget(arm_.getEndEffectorLink().c_str());
+      ROS_INFO("Moving to pickuped pose");
+      pose = arm_.getPoseTarget(arm_.getEndEffectorLink().c_str());
       pose.pose.position.z = 0.111828 + 0.3;
       arm_.setPoseTarget(pose);
       if (!arm_.move()) {
         ROS_WARN("Could not move to cognition pose");
+        return false;
+      }
+
+      return true;
+    }
+
+    void DoPlace() {
+      ROS_INFO("Moving to place pose");
+      geometry_msgs::PoseStamped pose;
+      pose.header.frame_id = "base_link";
+      pose.pose.position.x = place_px_;
+      pose.pose.position.y = place_py_;
+      pose.pose.position.z = place_pz_;
+      pose.pose.orientation.x = 1.0;
+      pose.pose.orientation.y = 0.0;
+      pose.pose.orientation.z = 0.0;
+      pose.pose.orientation.w = 0.0;
+
+      arm_.setPoseTarget(pose);
+      if (!arm_.move()) {
+        ROS_WARN("Could not move to place pose");
         return;
       }
+      ROS_INFO("Done placing");
 
       ros::Duration(2).sleep();
 
@@ -214,6 +241,9 @@ class PickNPlacer {
     actionlib::SimpleActionClient<control_msgs::GripperCommandAction> gripper_;
     ros::Subscriber sub_;
     const std::string PLANNING_GROUP = "xarm6";
+    float place_px_;
+    float place_py_;
+    float place_pz_;
 };
 
 int main(int argc, char** argv)
