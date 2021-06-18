@@ -86,9 +86,12 @@ class PickNPlacer {
   public:
     explicit PickNPlacer(ros::NodeHandle& node_handle)
       : arm_("xarm6"),
-      gripper_("/xarm/gripper_controller/gripper_cmd", "true") {
-        // 座標系をロボットのベースに基づいた「base_link」座標系を使う。
-        arm_.setPoseReferenceFrame("base_link");
+      gripper_("/xarm/gripper_controller/gripper_cmd", "true"),
+      gripper_group_("xarm_gripper"){
+        // 座標系をロボットのベースに基づいた「FIXED_FRAME」座標系を使う。
+        arm_.setPoseReferenceFrame(FIXED_FRAME);
+
+        SetupPlanningScene();
 
         ros::param::param<float>(
             "~place_px", // parameter server上のparameter nameを指定。node namespace内のパラメータはprefixとして"~"を付ける。指定しない場合はglobal parameterとして扱われる。
@@ -110,7 +113,7 @@ class PickNPlacer {
 
         ROS_INFO("Moving to cognition pose");
         geometry_msgs::PoseStamped pose;
-        pose.header.frame_id = "base_link";
+        pose.header.frame_id = FIXED_FRAME;
         pose.pose.position.x = 0.206873 + 0.25;
         pose.pose.position.y = 0.0;
         pose.pose.position.z = 0.111828 + 0.25;
@@ -149,7 +152,7 @@ class PickNPlacer {
 
       ROS_INFO("Moving to reached pose");
       geometry_msgs::PoseStamped pose;
-      pose.header.frame_id = "base_link";
+      pose.header.frame_id = FIXED_FRAME;
       pose.pose.position.x = msg->position.x;
       pose.pose.position.y = msg->position.y;
       pose.pose.position.z = msg->position.z;
@@ -177,6 +180,8 @@ class PickNPlacer {
         return false;
       }
 
+      arm_.attachObject("sponge", "", gripper_group_.getLinkNames());
+
       ros::Duration(2).sleep();
 
       ROS_INFO("Moving to pickuped pose");
@@ -194,7 +199,7 @@ class PickNPlacer {
     void DoPlace() {
       ROS_INFO("Moving to place pose");
       geometry_msgs::PoseStamped pose;
-      pose.header.frame_id = "base_link";
+      pose.header.frame_id = FIXED_FRAME;
       pose.pose.position.x = place_px_;
       pose.pose.position.y = place_py_;
       pose.pose.position.z = place_pz_;
@@ -222,6 +227,8 @@ class PickNPlacer {
         return;
       }
 
+      arm_.detachObject("sponge");
+
       ros::Duration(2).sleep();
 
       ROS_INFO("Moving to home pose");
@@ -231,16 +238,94 @@ class PickNPlacer {
     }
 
     void DoPickAndPlace(geometry_msgs::Pose::ConstPtr const& msg) {
+      AddBoxToScene(msg);
       if (DoPick(msg)) {
         DoPlace();
       }
+      RemoveBoxFromScene();
+    }
+
+    void SetupPlanningScene() {
+      ROS_INFO("Setting up planning scene");
+      // プラニングシーンを空にする
+      std::vector<std::string> objs;
+      for (auto o: scene_.getObjects()) {
+        objs.push_back(o.first);
+      }
+      for (auto o: scene_.getAttachedObjects()) {
+        objs.push_back(o.first);
+      }
+      scene_.removeCollisionObjects(objs);
+
+      // シーンにテーブルを追加
+      moveit_msgs::CollisionObject table;
+      table.header.frame_id = "base_link";
+      table.id = "table";
+      // テーブルの箱を指定
+      shape_msgs::SolidPrimitive primitive;
+      primitive.type = primitive.BOX;
+      primitive.dimensions.resize(3);
+      primitive.dimensions[0] = 1;
+      primitive.dimensions[1] = 1;
+      primitive.dimensions[2] = 0.1;
+      // テーブルの姿勢
+      geometry_msgs::Pose pose;
+      pose.position.x = 0;
+      pose.position.y = 0;
+      pose.position.z = -0.05;
+      pose.orientation.w = 1;
+      table.primitives.push_back(primitive);
+      table.primitive_poses.push_back(pose);
+      // 追加
+      table.operation = table.ADD;
+      // テーブルの色
+      std_msgs::ColorRGBA colour;
+      colour.b = 0.5;
+      colour.a = 1;
+      // シーンに追加
+      scene_.applyCollisionObject(table, colour);
+
+      // テーブルはスポンジキューブに下にあるとしてい
+      // （当たってもいいということ）
+      arm_.setSupportSurfaceName("table");
+    }
+
+    void AddBoxToScene(geometry_msgs::Pose::ConstPtr const& location) {
+      moveit_msgs::CollisionObject sponge;
+      sponge.header.frame_id = FIXED_FRAME;
+      sponge.id = "sponge";
+      shape_msgs::SolidPrimitive primitive;
+      primitive.type = primitive.BOX;
+      primitive.dimensions.resize(3);
+      primitive.dimensions[0] = 0.04;
+      primitive.dimensions[1] = 0.04;
+      primitive.dimensions[2] = 0.031;
+      geometry_msgs::Pose pose;
+      pose.position.x = 0.17;
+      pose.position.y = 0.0;
+      pose.position.z = 0.015;
+      pose.orientation.w = 1;
+      sponge.primitives.push_back(primitive);
+      sponge.primitive_poses.push_back(pose);
+      sponge.operation = sponge.ADD;
+      scene_.applyCollisionObject(sponge);
+      ros::Duration(1).sleep();
+    }
+
+    void RemoveBoxFromScene() {
+      std::vector<std::string> objs;
+      objs.push_back("sponge");
+      scene_.removeCollisionObjects(objs);
     }
 
   private:
     moveit::planning_interface::MoveGroupInterface arm_;
+    moveit::planning_interface::MoveGroupInterface gripper_group_;
+    moveit::planning_interface::PlanningSceneInterface scene_;
     actionlib::SimpleActionClient<control_msgs::GripperCommandAction> gripper_;
     ros::Subscriber sub_;
     const std::string PLANNING_GROUP = "xarm6";
+    const std::string FIXED_FRAME = "world";
     float place_px_;
     float place_py_;
     float place_pz_;
