@@ -48,7 +48,10 @@
 
   <rosparam if="$(arg add_gripper)"
     file="$(find xarm_controller)/config/xarm_gripper_controller.yaml" command="load"/>
+<!--
   <arg name="gripper_controller" value="gripper_controller" />
+    -->
+  <arg name="gripper_controller" value="gripper_trajectory_controller" />
   <node if="$(arg add_gripper)" name="gripper_controller_spawner"
     pkg="controller_manager"
     type="spawner"
@@ -56,6 +59,9 @@
     output="screen"
     ns="/$(arg namespace)"
     args="$(arg gripper_controller) "/>
+<!--
+    args="$(arg gripper_controller) "/>
+    -->
 
   <!-- convert joint states to TF transforms for rviz, etc -->
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"
