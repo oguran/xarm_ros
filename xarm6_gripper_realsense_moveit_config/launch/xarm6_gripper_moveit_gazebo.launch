@@ -8,7 +8,7 @@
   <remap from="arm_controller/follow_joint_trajectory" to="/xarm/$(arg xarm_traj_controller)/follow_joint_trajectory"/>
   <remap from="gripper_controller/follow_joint_trajectory" to="/xarm/$(arg gripper_trajectory_controller)/follow_joint_trajectory"/>
 
-  <include file="$(find xarm6_gripper_moveit_config)/launch/moveit_rviz_common.launch">
+  <include file="$(find xarm6_gripper_realsense_moveit_config)/launch/moveit_rviz_common.launch">
     <arg name="jnt_stat_source" value="[/xarm/joint_states]" />
     <arg name="load_move_group" value="true" />
     <arg name="pub_tf" value="false" />

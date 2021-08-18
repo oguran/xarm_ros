@@ -6,6 +6,6 @@
   	<param name="trajectory_execution/execution_duration_monitoring" value="false"/>
   	<!-- The rest of the params are specific to this plugin -->
 
-	<rosparam if="$(arg gripper_controller)" file="$(find xarm6_gripper_moveit_config)/config/arm_gripper_controllers.yaml"/>
-	<rosparam unless="$(arg gripper_controller)" file="$(find xarm6_gripper_moveit_config)/config/arm_controllers.yaml"/>
+	<rosparam if="$(arg gripper_controller)" file="$(find xarm6_gripper_realsense_moveit_config)/config/arm_gripper_controllers.yaml"/>
+	<rosparam unless="$(arg gripper_controller)" file="$(find xarm6_gripper_realsense_moveit_config)/config/arm_controllers.yaml"/>
 </launch>

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(xarm6_gripper_moveit_config)
+project(xarm6_gripper_realsense_moveit_config)
 
 find_package(catkin REQUIRED)
 

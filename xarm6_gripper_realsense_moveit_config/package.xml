@@ -1,6 +1,6 @@
 <package>
 
-  <name>xarm6_gripper_moveit_config</name>
+  <name>xarm6_gripper_realsense_moveit_config</name>
   <version>0.3.0</version>
   <description>
      An automatically generated package with all the configuration and launch files for using the xarm6_with_gripper with the MoveIt! Motion Planning Framework

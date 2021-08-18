@@ -10,6 +10,6 @@
 
    <param name="collision_detector" value="Hybrid" />
 
-   <rosparam command="load" file="$(find xarm6_gripper_moveit_config)/config/chomp_planning.yaml" />
+   <rosparam command="load" file="$(find xarm6_gripper_realsense_moveit_config)/config/chomp_planning.yaml" />
 
 </launch>
