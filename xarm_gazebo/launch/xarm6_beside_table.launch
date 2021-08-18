@@ -7,6 +7,7 @@
   <arg name="velocity_control" default="false"/>
   <arg name="add_gripper" default="false" />
   <arg name="add_vacuum_gripper" default="false" />
+  <arg name="add_gripper_realsense" default="false" />
   
   <arg name="xarm_velocity_control" value="$(eval arg('velocity_control') and not arg('run_demo'))" />
 
@@ -19,7 +20,7 @@
   </include>
 
   <!-- send robot urdf to param server, joint limit may be overwritten if use moveit planner -->
-  <param unless="$(eval arg('add_gripper') or arg('add_vacuum_gripper'))" name="robot_description"
+  <param unless="$(eval arg('add_gripper') or arg('add_vacuum_gripper') or arg('add_gripper_realsense'))" name="robot_description"
     command="$(find xacro)/xacro
     --inorder '$(find xarm_description)/urdf/xarm6_robot.urdf.xacro'
     effort_control:=$(arg effort_control) velocity_control:=$(arg xarm_velocity_control)" />
@@ -34,6 +35,11 @@
     --inorder '$(find xarm_description)/urdf/xarm6_with_vacuum_gripper.xacro'
     effort_control:=$(arg effort_control) velocity_control:=$(arg xarm_velocity_control)" />
 
+  <param if="$(arg add_gripper_realsense)" name="robot_description"
+    command="$(find xacro)/xacro
+    --inorder '$(find xarm_description)/urdf/xarm6_with_gripper_realsense.xacro'
+    effort_control:=$(arg effort_control) velocity_control:=$(arg xarm_velocity_control)" />
+
   <!-- spawn robot model in gazebo, located on the table -->
   <node name="spawn_gazebo_model" pkg="gazebo_ros" type="spawn_model"
     respawn="false" output="screen"
@@ -44,7 +50,7 @@
     <arg name="run_demo_traj" value="$(arg run_demo)"/>
     <arg name="effort_control" value="$(arg effort_control)"/>
     <arg name="velocity_control" value="$(arg xarm_velocity_control)"/>
-    <arg name="add_gripper" value="$(arg add_gripper)" />
+    <arg name="add_gripper" value="$(eval arg ('add_gripper') or arg ('add_gripper_realsense'))" />
   </include>
 
 </launch>
