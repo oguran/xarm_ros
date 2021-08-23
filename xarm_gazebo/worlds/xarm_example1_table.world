@@ -13,6 +13,30 @@
       <pose>0.0 -0.84 0 0 0 0</pose>
     </include>
 
+    <model name="055_baseball">
+      <pose>-0.1 -0.84 1.015  0 0 0</pose>
+      <static>true</static>
+      <link name="body">
+        <visual name="visual">
+          <geometry>
+            <mesh><uri>file:///home/myubuntu16/catkin_ws/src/xarm_ros/xarm_gazebo/worlds/ycb_obj/055_baseball/google_16k/textured.dae</uri></mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
+    <model name="056_tennis_ball">
+      <pose>0.1 -0.84 1.015  0 0 0</pose>
+      <static>true</static>
+      <link name="body">
+        <visual name="visual">
+          <geometry>
+            <mesh><uri>file:///home/myubuntu16/catkin_ws/src/xarm_ros/xarm_gazebo/worlds/ycb_obj/056_tennis_ball/google_16k/textured.dae</uri></mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
     <physics type="ode" update_rate="100.0">
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1</real_time_factor>
