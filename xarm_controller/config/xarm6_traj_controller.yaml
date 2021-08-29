@@ -1,8 +1,4 @@
 xarm:
-  joint_state_controller:
-    type: joint_state_controller/JointStateController
-    publish_rate: 50
-    
   xarm6_traj_controller:
     type: position_controllers/JointTrajectoryController
     joints:

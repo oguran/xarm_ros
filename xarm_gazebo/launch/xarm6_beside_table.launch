@@ -47,7 +47,7 @@
 
   <!-- load the corresponding controllers -->
   <include file="$(find xarm_controller)/launch/xarm6_control.launch">
-    <arg name="run_demo_traj" value="$(arg run_demo)"/>
+    <arg name="run_demo_app1" value="$(arg run_demo)"/>
     <arg name="effort_control" value="$(arg effort_control)"/>
     <arg name="velocity_control" value="$(arg xarm_velocity_control)"/>
     <arg name="add_gripper" value="$(eval arg ('add_gripper') or arg ('add_gripper_realsense'))" />

@@ -39,7 +39,7 @@
     </xacro:unless>
 
     <xacro:xarm6_transmission prefix="${prefix}" hard_interface="$(eval 'EffortJointInterface' if effort_control else 'VelocityJointInterface' if velocity_control else 'PositionJointInterface')" />
-    
+
     <xacro:xarm6_gazebo prefix="${prefix}" />
 
   </xacro:macro>
