@@ -1,0 +1,108 @@
+# coding: utf-8
+import numpy as np
+import cv2
+import rospy
+import message_filters
+from std_msgs.msg import String
+from geometry_msgs.msg import Point
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge
+
+class testNode():
+    def __init__(self):
+        self.bridge = CvBridge()
+        # Subscriberの作成
+        sub_rgb = message_filters.Subscriber('/camera/color/image_raw', Image)
+        sub_depth = message_filters.Subscriber('/camera/depth/image_raw', Image)
+        self.mf = message_filters.ApproximateTimeSynchronizer([sub_rgb, sub_depth], 100, 0.5)
+        self.mf.registerCallback(self.callback)
+        # Publisherの作成
+        self.pub_target = rospy.Publisher('/camera/taeget', Point, queue_size=5)
+        self.pub_dbg_1 = rospy.Publisher('/camera/debug', Image, queue_size=5)
+        self.pub_dbg_2 = rospy.Publisher('/camera/debug2', Image, queue_size=5)
+
+    def callback(self, rgb_data, depth_data):
+        print('rgb   x = {}, y = {}'.format(rgb_data.width, rgb_data.height))
+        print('depth x = {}, y = {}'.format(depth_data.width, depth_data.height))
+
+
+        try:
+            color_image = self.bridge.imgmsg_to_cv2(rgb_data, rgb_data.encoding)
+            depth_image = self.bridge.imgmsg_to_cv2(depth_data, depth_data.encoding)
+        except CvBridgeError, e:
+            rospy.logerr(e)
+        bgrLower = np.array([ 90,  90,  0])
+        bgrUpper = np.array([255, 255,  45])
+        img_mask = cv2.inRange(color_image, bgrLower, bgrUpper) # bgrからマスクを作成
+        extract = cv2.bitwise_and(color_image, color_image, mask=img_mask)
+
+        gray_image = cv2.cvtColor(extract , cv2.COLOR_BGR2GRAY)                  # グレースケール化
+        ret, img_binary = cv2.threshold(gray_image,                       # 二値化
+                80, 255,                                                # 二値化のための閾値60(調整要)
+                cv2.THRESH_BINARY)
+
+        dummy_image, contours, hierarchy = cv2.findContours(img_mask, # 輪郭検出
+                cv2.RETR_EXTERNAL,                                      # 外側の輪郭のみ抽出
+                cv2.CHAIN_APPROX_SIMPLE)
+        contours = np.array(contours)                                   # 輪郭情報をndarrayに変換
+
+        # 輪郭検出から物体中心を算出
+        x = np.mean(contours[0].T[0, 0])                                # 輪郭のx方向平均値を算出
+        y = np.mean(contours[0].T[1, 0])                                # 輪郭のy方向平均値を算出
+        point = Point(x,y,0.0)
+
+        img_circle = cv2.circle(color_image, (int(x), int(y)), 30, 155, 3)  # 検出した位置にサークル描画
+
+        send_img_circle = self.bridge.cv2_to_imgmsg(img_circle, rgb_data.encoding)                 # ROS msgに変換
+        send_img_gray = self.bridge.cv2_to_imgmsg(img_mask_inv, '8UC1')                 # ROS msgに変換
+
+        self.pub_target.publish(point)
+        self.pub_dbg_1.publish(send_img_circle)
+        self.pub_dbg_2.publish(send_img_gray)
+
+
+
+        # ROS msg -> cv2フォーマット変換
+        #img = bridge.imgmsg_to_cv2(msg, msg.encoding)
+
+        # 画像から輪郭を検出
+        #img_gray = (img).astype('uint32')                              # 16bit -> 8bit (値は適度にスケーリング(1/8))
+        #bgrLower = 1
+        #bgrUpper = 50
+        #img_mask = cv2.inRange(img_gray, bgrLower, bgrUpper) # bgrからマスクを作成
+        #img_8 = (img/16).astype('uint8')                              # 16bit -> 8bit (値は適度にスケーリング(1/8))
+        #ret, img_binary = cv2.threshold(img,                       # 二値化
+        #        100, 255,                                                # 二値化のための閾値60(調整要)
+        #        cv2.THRESH_BINARY)
+        #img_binary_8 = (img_binary).astype('uint8')                              # 16bit -> 8bit (値は適度にスケーリング(1/8))
+        #dummy_image, contours, hierarchy = cv2.findContours(img_binary_8, # 輪郭検出
+        #        cv2.RETR_EXTERNAL,                                      # 外側の輪郭のみ抽出
+        #        cv2.CHAIN_APPROX_SIMPLE)
+        #contours = np.array(contours)                                   # 輪郭情報をndarrayに変換
+
+        # 輪郭検出から物体中心を算出
+        #x = np.mean(contours[0].T[0, 0])                                # 輪郭のx方向平均値を算出
+        #y = np.mean(contours[0].T[1, 0])                                # 輪郭のy方向平均値を算出
+        #point = Point(x,y,0.0)
+
+        #img_circle = cv2.circle(dummy_image, (int(x), int(y)), 30, 155, 3)  # 検出した位置にサークル描画
+        #send_img = bridge.cv2_to_imgmsg(img_8, '8UC1')                 # ROS msgに変換
+        #send_img2 = bridge.cv2_to_imgmsg(img_circle, '8UC1')                 # ROS msgに変換
+
+        #self.pub.publish(point)
+        #self.sub_depth.publish(send_img)
+        #self.pub3.publish(send_img2)
+
+        #print('send_img.shape={}'.format(img_circle.shape))
+        #print('point x={}, y={}'.format(x,y))
+
+
+
+if __name__ == '__main__':
+    rospy.init_node('target_notifier')
+
+    node = testNode()
+
+    while not rospy.is_shutdown():
+        rospy.sleep(0.1)
+
