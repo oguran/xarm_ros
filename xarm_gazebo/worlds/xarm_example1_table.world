@@ -51,6 +51,13 @@
     </model>
     -->
 
+    <scene>
+      <!-- Set blightness of world -->
+      <ambient>0.7 0.7 0.7 1</ambient>
+      <!-- Set color of background -->
+      <background>0.1 0.1 0.1 1</background>
+    </scene>
+
     <physics type="ode" update_rate="100.0">
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1</real_time_factor>
