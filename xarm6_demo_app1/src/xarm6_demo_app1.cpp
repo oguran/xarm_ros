@@ -1,285 +1,75 @@
 /*********************************************************************
-* Software License Agreement (BSD License)
-*
-*  Copyright (c) 2012, Willow Garage, Inc.
-*  All rights reserved.
-*
-*  Redistribution and use in source and binary forms, with or without
-*  modification, are permitted provided that the following conditions
-*  are met:
-*
-*   * Redistributions of source code must retain the above copyright
-*     notice, this list of conditions and the following disclaimer.
-*   * Redistributions in binary form must reproduce the above
-*     copyright notice, this list of conditions and the following
-*     disclaimer in the documentation and/or other materials provided
-*     with the distribution.
-*   * Neither the name of Willow Garage nor the names of its
-*     contributors may be used to endorse or promote products derived
-*     from this software without specific prior written permission.
-*
-*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-*  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-*  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-*  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-*  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-*  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-*  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-*  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-*  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-*  POSSIBILITY OF SUCH DAMAGE.
-*********************************************************************/
+ * Software License Agreement (BSD License)
+ *
+ *  Copyright (c) 2013, SRI International
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of SRI International nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *********************************************************************/
 
-/* Author: Ioan Sucan, Ridhwan Luthra*/
+/* Author: Sachin Chitta, Dave Coleman, Mike Lautman */
 
-// ROS
-#include <ros/ros.h>
-
-// MoveIt
-#include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <moveit/move_group_interface/move_group_interface.h>
+#include <moveit/planning_scene_interface/planning_scene_interface.h>
 
-// TF2
+#include <moveit_msgs/DisplayRobotState.h>
+#include <moveit_msgs/DisplayTrajectory.h>
+
+#include <moveit_msgs/AttachedCollisionObject.h>
+#include <moveit_msgs/CollisionObject.h>
+
+#include <moveit_visual_tools/moveit_visual_tools.h>
+
+#include <std_msgs/Duration.h>
+#include <mutex>
+#include <math.h>
+
+#include <actionlib/client/simple_action_client.h>
+#include <control_msgs/GripperCommandAction.h>
+#include <controller_manager_msgs/SwitchController.h>
+#include <controller_manager_msgs/ListControllers.h>
+
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/buffer_interface.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
-#define FIXED_FRAME ("world")
+#include <opencv/cv.h>
+#include <cv_bridge/cv_bridge.h>
+#include <image_transport/image_transport.h>
 
-void openGripper(trajectory_msgs::JointTrajectory& posture)
-{
-  // BEGIN_SUB_TUTORIAL open_gripper
-  /* Add both finger joints of panda robot. */
-  posture.joint_names.resize(1);
-  posture.joint_names[0] = "drive_joint";
-
-  /* Set them as open, wide enough for the object to fit. */
-  posture.points.resize(1);
-  posture.points[0].positions.resize(1);
-  posture.points[0].positions[0] = 0.1;
-  posture.points[0].time_from_start = ros::Duration(0.5);
-  // END_SUB_TUTORIAL
-}
-
-void closedGripper(trajectory_msgs::JointTrajectory& posture)
-{
-  // BEGIN_SUB_TUTORIAL closed_gripper
-  /* Add both finger joints of panda robot. */
-  posture.joint_names.resize(1);
-  posture.joint_names[0] = "drive_joint";
-
-  /* Set them as closed. */
-  posture.points.resize(1);
-  posture.points[0].positions.resize(1);
-  posture.points[0].positions[0] = 0.7;
-  posture.points[0].time_from_start = ros::Duration(0.5);
-  // END_SUB_TUTORIAL
-}
-
-void pick(moveit::planning_interface::MoveGroupInterface& move_group)
-{
-  // BEGIN_SUB_TUTORIAL pick1
-  // Create a vector of grasps to be attempted, currently only creating single grasp.
-  // This is essentially useful when using a grasp generator to generate and test multiple grasps.
-  std::vector<moveit_msgs::Grasp> grasps;
-  grasps.resize(1);
-
-  // Setting grasp pose
-  // ++++++++++++++++++++++
-  // This is the pose of panda_link8. |br|
-  // From panda_link8 to the palm of the eef the distance is 0.058, the cube starts 0.01 before 5.0 (half of the length
-  // of the cube). |br|
-  // Therefore, the position for panda_link8 = 5 - (length of cube/2 - distance b/w panda_link8 and palm of eef - some
-  // extra padding)
-  grasps[0].grasp_pose.header.frame_id = FIXED_FRAME;
-  tf2::Quaternion orientation;
-  grasps[0].grasp_pose.pose.orientation.x = 1.0;
-  grasps[0].grasp_pose.pose.orientation.y = 0;
-  grasps[0].grasp_pose.pose.orientation.z = 0;
-  grasps[0].grasp_pose.pose.orientation.w = 0;
-  grasps[0].grasp_pose.pose.position.x = 0.5;
-  grasps[0].grasp_pose.pose.position.y = 0;
-  grasps[0].grasp_pose.pose.position.z = 0.16;
-
-  // Setting pre-grasp approach
-  // ++++++++++++++++++++++++++
-  /* Defined with respect to frame_id */
-  grasps[0].pre_grasp_approach.direction.header.frame_id = FIXED_FRAME;
-  /* Direction is set as positive x axis */
-  //grasps[0].pre_grasp_approach.direction.vector.x = 1.0;
-  grasps[0].pre_grasp_approach.direction.vector.z = -1.0;
-  grasps[0].pre_grasp_approach.min_distance = 0.095;
-  grasps[0].pre_grasp_approach.desired_distance = 0.115;
-
-  // Setting post-grasp retreat
-  // ++++++++++++++++++++++++++
-  /* Defined with respect to frame_id */
-  grasps[0].post_grasp_retreat.direction.header.frame_id = FIXED_FRAME;
-  /* Direction is set as positive z axis */
-  grasps[0].post_grasp_retreat.direction.vector.z = 1.0;
-  grasps[0].post_grasp_retreat.min_distance = 0.1;
-  grasps[0].post_grasp_retreat.desired_distance = 0.25;
-
-  // Setting posture of eef before grasp
-  // +++++++++++++++++++++++++++++++++++
-  openGripper(grasps[0].pre_grasp_posture);
-  // END_SUB_TUTORIAL
-
-  // BEGIN_SUB_TUTORIAL pick2
-  // Setting posture of eef during grasp
-  // +++++++++++++++++++++++++++++++++++
-  closedGripper(grasps[0].grasp_posture);
-  // END_SUB_TUTORIAL
-
-  // BEGIN_SUB_TUTORIAL pick3
-  // Set support surface as table1.
-  move_group.setSupportSurfaceName("table1");
-  // Call pick to pick up the object using the grasps given
-  move_group.pick("object", grasps);
-  //move_group.planGraspsAndPick("object", false);
-  // END_SUB_TUTORIAL
-}
-
-void place(moveit::planning_interface::MoveGroupInterface& group)
-{
-  // BEGIN_SUB_TUTORIAL place
-  // TODO(@ridhwanluthra) - Calling place function may lead to "All supplied place locations failed. Retrying last
-  // location in
-  // verbose mode." This is a known issue and we are working on fixing it. |br|
-  // Create a vector of placings to be attempted, currently only creating single place location.
-  std::vector<moveit_msgs::PlaceLocation> place_location;
-  place_location.resize(1);
-
-  // Setting place location pose
-  // +++++++++++++++++++++++++++
-  place_location[0].place_pose.header.frame_id = FIXED_FRAME;
-  tf2::Quaternion orientation;
-  orientation.setRPY(0, 0, M_PI / 2);
-  place_location[0].place_pose.pose.orientation = tf2::toMsg(orientation);
-
-  /* While placing it is the exact location of the center of the object. */
-  place_location[0].place_pose.pose.position.x = 0;
-  place_location[0].place_pose.pose.position.y = 0.5;
-  //place_location[0].place_pose.pose.position.z = 0.5;
-  place_location[0].place_pose.pose.position.z = 0.16;
-
-  // Setting pre-place approach
-  // ++++++++++++++++++++++++++
-  /* Defined with respect to frame_id */
-  place_location[0].pre_place_approach.direction.header.frame_id = FIXED_FRAME;
-  /* Direction is set as negative z axis */
-  place_location[0].pre_place_approach.direction.vector.z = -1.0;
-  place_location[0].pre_place_approach.min_distance = 0.095;
-  place_location[0].pre_place_approach.desired_distance = 0.115;
-
-  // Setting post-grasp retreat
-  // ++++++++++++++++++++++++++
-  /* Defined with respect to frame_id */
-  place_location[0].post_place_retreat.direction.header.frame_id = FIXED_FRAME;
-  /* Direction is set as negative y axis */
-  //place_location[0].post_place_retreat.direction.vector.y = -1.0;
-  place_location[0].post_place_retreat.direction.vector.z = 1.0;
-  place_location[0].post_place_retreat.min_distance = 0.1;
-  place_location[0].post_place_retreat.desired_distance = 0.25;
-
-  // Setting posture of eef after placing object
-  // +++++++++++++++++++++++++++++++++++++++++++
-  /* Similar to the pick case */
-  openGripper(place_location[0].post_place_posture);
-
-  // Set support surface as table2.
-  group.setSupportSurfaceName("table2");
-  // Call place to place the object using the place locations given.
-  group.place("object", place_location);
-  // END_SUB_TUTORIAL
-}
-
-void addCollisionObjects(moveit::planning_interface::PlanningSceneInterface& planning_scene_interface)
-{
-  // BEGIN_SUB_TUTORIAL table1
-  //
-  // Creating Environment
-  // ^^^^^^^^^^^^^^^^^^^^
-  // Create vector to hold 3 collision objects.
-  std::vector<moveit_msgs::CollisionObject> collision_objects;
-  collision_objects.resize(3);
-
-  // Add the first table where the cube will originally be kept.
-  collision_objects[0].id = "table1";
-  collision_objects[0].header.frame_id = FIXED_FRAME;
-
-  /* Define the primitive and its dimensions. */
-  collision_objects[0].primitives.resize(1);
-  collision_objects[0].primitives[0].type = collision_objects[0].primitives[0].BOX;
-  collision_objects[0].primitives[0].dimensions.resize(3);
-  collision_objects[0].primitives[0].dimensions[0] = 0.2;
-  collision_objects[0].primitives[0].dimensions[1] = 0.4;
-  collision_objects[0].primitives[0].dimensions[2] = 0.15;
-
-  /* Define the pose of the table. */
-  collision_objects[0].primitive_poses.resize(1);
-  collision_objects[0].primitive_poses[0].position.x = 0.5;
-  collision_objects[0].primitive_poses[0].position.y = 0;
-  collision_objects[0].primitive_poses[0].position.z = 0.075;
-  // END_SUB_TUTORIAL
-
-  collision_objects[0].operation = collision_objects[0].ADD;
-
-  // BEGIN_SUB_TUTORIAL table2
-  // Add the second table where we will be placing the cube.
-  collision_objects[1].id = "table2";
-  collision_objects[1].header.frame_id = FIXED_FRAME;
-
-  /* Define the primitive and its dimensions. */
-  collision_objects[1].primitives.resize(1);
-  collision_objects[1].primitives[0].type = collision_objects[1].primitives[0].BOX;
-  collision_objects[1].primitives[0].dimensions.resize(3);
-  collision_objects[1].primitives[0].dimensions[0] = 0.4;
-  collision_objects[1].primitives[0].dimensions[1] = 0.2;
-  collision_objects[1].primitives[0].dimensions[2] = 0.15;
-
-  /* Define the pose of the table. */
-  collision_objects[1].primitive_poses.resize(1);
-  collision_objects[1].primitive_poses[0].position.x = 0;
-  collision_objects[1].primitive_poses[0].position.y = 0.5;
-  collision_objects[1].primitive_poses[0].position.z = 0.075;
-  // END_SUB_TUTORIAL
-
-  collision_objects[1].operation = collision_objects[1].ADD;
-
-  // BEGIN_SUB_TUTORIAL object
-  // Define the object that we will be manipulating
-  collision_objects[2].header.frame_id = FIXED_FRAME;
-  collision_objects[2].id = "object";
-
-  /* Define the primitive and its dimensions. */
-  collision_objects[2].primitives.resize(1);
-  collision_objects[2].primitives[0].type = collision_objects[1].primitives[0].BOX;
-  collision_objects[2].primitives[0].dimensions.resize(3);
-  collision_objects[2].primitives[0].dimensions[0] = 0.02;
-  collision_objects[2].primitives[0].dimensions[1] = 0.02;
-  collision_objects[2].primitives[0].dimensions[2] = 0.02;
-
-  /* Define the pose of the object. */
-  collision_objects[2].primitive_poses.resize(1);
-  collision_objects[2].primitive_poses[0].position.x = 0.5;
-  collision_objects[2].primitive_poses[0].position.y = 0;
-  collision_objects[2].primitive_poses[0].position.z = 0.16;
-  // END_SUB_TUTORIAL
-
-  collision_objects[2].operation = collision_objects[2].ADD;
-
-  planning_scene_interface.applyCollisionObjects(collision_objects);
-}
-
-void RemoveBoxFromScene(moveit::planning_interface::PlanningSceneInterface& planning_scene_interface) {
-  std::vector<std::string> objs;
-  objs.push_back("table1");
-  objs.push_back("table2");
-  objs.push_back("object");
-  planning_scene_interface.removeCollisionObjects(objs);
-}
-
+/**
+ * @brief RPYからクオータニオンを取得する関数
+ *
+ * @param roll [rad]
+ * @param pitch [rad]
+ * @param yaw [rad]
+ * @param[out] q クオータニオン
+ */
 void GetQuaternionMsg(
     double roll,double pitch,double yaw,
     geometry_msgs::Quaternion &q
@@ -288,79 +78,262 @@ void GetQuaternionMsg(
   quaternionTFToMsg(quat,q);
 }
 
+/**
+*  @brief ROSのトピックのクオータニオンの構造体から
+*         Roll,Pitch,Yaw角を取得する関数
+*  @param q トピックのクオータニオン
+*  @param[out] roll [rad]
+*  @param[out] pitch [rad]
+*  @param[out] yaw [rad]
+*/
+void GetRPY(const geometry_msgs::Quaternion &q,
+    double &roll,double &pitch,double &yaw){
+  tf::Quaternion quat(q.x,q.y,q.z,q.w);
+  tf::Matrix3x3(quat).getRPY(roll, pitch, yaw);
+}
+
+bool SwitchController(ros::NodeHandle& node_handle,
+    std::vector<std::string> start_controller,
+    std::vector<std::string> stop_controller) {
+
+  ros::ServiceClient switch_controller =
+    node_handle.serviceClient<controller_manager_msgs::SwitchController>("xarm/controller_manager/switch_controller");
+  controller_manager_msgs::SwitchController switch_controller_req;
+  switch_controller_req.request.start_controllers = start_controller;
+  switch_controller_req.request.stop_controllers = stop_controller;
+  switch_controller_req.request.strictness = switch_controller_req.request.STRICT;
+  ros::service::waitForService("xarm/controller_manager/switch_controller", ros::Duration(5));
+  switch_controller.call(switch_controller_req);
+  if (switch_controller_req.response.ok)
+  {
+    ROS_INFO_STREAM("Controller switch correctly");
+  }
+  else
+  {
+    ROS_ERROR_STREAM("Error occured trying to switch controller");
+    return false;
+  }
+
+  return true;
+}
+
+#if 0
+void ShowControllerStatistics(ros::NodeHandle& node_handle,) {
+  ros::ServiceClient controller_statistics =
+    node_handle.serviceClient<controller_manager_msgs::ControllerStatistics>("xarm/controller_manager/list_controllers");
+  controller_manager_msgs::ListControllers list_controllers;
+  ros::service::waitForService("xarm/controller_manager/list_controllers", ros::Duration(5));
+}
+#endif
+
+
+class VisualServoTest {
+  public:
+    explicit VisualServoTest(ros::NodeHandle& node_handle)
+      : arm_("xarm6"),
+      tflistener_(tfBuffer_),
+      gripper_("/xarm/gripper_controller/gripper_cmd", "true") {
+        // 座標系をロボットのベースに基づいた「FIXED_FRAME」座標系を使う。
+        arm_.setPoseReferenceFrame(FIXED_FRAME);
+        gripper_.waitForServer();
+
+        pub_arm_cartesian_ = node_handle.advertise<geometry_msgs::PoseStamped>("/xarm/xarm6_cartesian_motion_controller/goal", 10);
+        sub_target_pose_ = node_handle.subscribe<geometry_msgs::PoseStamped>("/camera/target", 10, &VisualServoTest::DepthTargetCallback, this);
+        ROS_INFO("Subscribe prepared!");
+      }
+
+    bool MoveToCognitionPose(ros::NodeHandle& node_handle) {
+      ROS_INFO("Moving to cognition pose");
+      geometry_msgs::PoseStamped pose;
+      pose.header.frame_id = FIXED_FRAME;
+      //pose.pose.position.x = 0.206873 - 0.50;
+      //pose.pose.position.y = 0.0;
+      //pose.pose.position.z = 0.111828 + 0.25;
+      pose.pose.position.x = -0.354;
+      pose.pose.position.y = -0.037;
+      pose.pose.position.z = 0.505;
+
+#if 0
+      GetQuaternionMsg( 0.0, 3.14, 3.14, pose.pose.orientation);
+#else
+      pose.pose.orientation.x = 0.0;
+      pose.pose.orientation.y = 1.0;
+      pose.pose.orientation.z = 0.0;
+      pose.pose.orientation.w = 0.0;
+#endif
+
+      arm_.setPoseTarget(pose);
+      if (!arm_.move()) {
+        ROS_WARN("Could not move to cognition pose");
+        return false;
+      }
+
+      ROS_INFO("Initialized pose gripper");
+      control_msgs::GripperCommandGoal goal;
+      goal.command.position = 0.3;
+      gripper_.sendGoal(goal);
+      bool finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(30));
+      if (!finishedBeforeTimeout) {
+        ROS_WARN("gripper_ open action did not complete");
+        return false;
+      }
+      ROS_INFO("Initialize gripper pose");
+
+      return true;
+    }
+
+    bool DoApproach(ros::NodeHandle& node_handle) {
+      ROS_INFO("Opening gripper");
+      control_msgs::GripperCommandGoal goal;
+      goal.command.position = 0.7;
+      gripper_.sendGoal(goal);
+      bool finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(30));
+      if (!finishedBeforeTimeout) {
+        ROS_WARN("gripper_open action did not complete");
+        return false;
+      }
+
+      ROS_INFO("Approaching");
+      geometry_msgs::PoseStamped pose;
+      pose.header.frame_id = FIXED_FRAME;
+      {
+        std::lock_guard<std::mutex> lock(mtx_);
+        pose.pose.position.x = target_pose_.position.x;
+        pose.pose.position.y = target_pose_.position.y;
+        pose.pose.position.z = target_pose_.position.z - 0.2;
+
+        pose.pose.orientation.x = target_pose_.orientation.x;
+        pose.pose.orientation.y = target_pose_.orientation.y;
+        pose.pose.orientation.z = target_pose_.orientation.z;
+        pose.pose.orientation.w = target_pose_.orientation.w;
+      }
+
+        ROS_WARN("position = %f, %f, %f  orientation = %f, %f, %f, %f",
+            pose.pose.position.x,
+            pose.pose.position.y,
+            pose.pose.position.z,
+            pose.pose.orientation.x,
+            pose.pose.orientation.y,
+            pose.pose.orientation.z,
+            pose.pose.orientation.w
+            );
+
+      arm_.setPoseTarget(pose);
+      if (!arm_.move()) {
+        ROS_WARN("Could not approaching");
+        return false;
+      }
+
+      return true;
+    }
+
+    bool VisualServo(ros::NodeHandle& node_handle) {
+#if 0
+      std::vector<std::string> start_controller;
+      start_controller.push_back("xarm6_cartesian_motion_controller_velocity");
+      std::vector<std::string> stop_controller;
+      stop_controller.push_back("xarm6_traj_controller_velocity");
+
+      if (false == SwitchController(node_handle, start_controller, stop_controller)) {
+        return false;
+      }
+      ros::Duration(2).sleep();
+#endif
+
+      ROS_INFO("Moving to picking pose");
+      geometry_msgs::PoseStamped pose;
+      pose.header.frame_id = FIXED_FRAME;
+
+      ros::Rate rate(30);
+      while (ros::ok()) {
+        {
+          std::lock_guard<std::mutex> lock(mtx_);
+
+          if (pregrasped_) break;
+
+          pose.pose.position.x = target_pose_.position.x;
+          pose.pose.position.y = target_pose_.position.y;
+          pose.pose.position.z = target_pose_.position.z;
+
+          pose.pose.orientation.x = target_pose_.orientation.x;
+          pose.pose.orientation.y = target_pose_.orientation.y;
+          pose.pose.orientation.z = target_pose_.orientation.z;
+          pose.pose.orientation.w = target_pose_.orientation.w;
+        }
+        pub_arm_cartesian_.publish(pose);
+
+        rate.sleep();
+      }
+#if 1
+      pregrasped_= true;
+#endif
+
+      ROS_INFO("Moved to picking pose");
+
+      return true;
+    }
+
+    void DepthTargetCallback(geometry_msgs::PoseStamped::ConstPtr const& msg) {
+      geometry_msgs::PoseStamped target_pose;
+      ros::Time now = ros::Time::now();
+
+      if (!tfBuffer_.canTransform(FIXED_FRAME, msg->header.frame_id, now, ros::Duration(1.0))) {
+        ROS_WARN("Could not lookup transform from %s to %s, in duration %f [sec]",
+            FIXED_FRAME, msg->header.frame_id.c_str(), 1.0f);
+        return;
+      }
+
+      geometry_msgs::TransformStamped transform_stamped;
+      try {
+        tfBuffer_.transform(*msg, target_pose, FIXED_FRAME, ros::Duration(1.0));
+      } catch (tf2::TransformException &ex) {
+        ROS_WARN("%s", ex.what());
+        return;
+      }
+
+
+      {
+        std::lock_guard<std::mutex> lock(mtx_);
+
+        target_pose_.position = target_pose.pose.position;
+        target_pose_.orientation = target_pose.pose.orientation;
+
+        //if (target_pose_.position.z) pregrasped_= true;
+      }
+    }
+
+  private:
+    moveit::planning_interface::MoveGroupInterface arm_;
+    moveit::planning_interface::PlanningSceneInterface scene_;
+    actionlib::SimpleActionClient<control_msgs::GripperCommandAction> gripper_;
+    ros::Publisher pub_arm_cartesian_;
+    ros::Subscriber sub_target_pose_;
+    const std::string PLANNING_GROUP = "xarm6";
+    const std::string FIXED_FRAME = "world";
+    geometry_msgs::Pose target_pose_;
+    std::mutex mtx_;
+    bool pregrasped_ = false;
+    tf2_ros::Buffer tfBuffer_;
+    tf2_ros::TransformListener tflistener_;
+};
 
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "xarm6_demo_app1_node");
-  ros::NodeHandle nh;
-  ros::AsyncSpinner spinner(1);
+  ros::NodeHandle node_handle;
+  // MoveIt!はアシンクロナスな計算をしないといけないので、このコードによりROSのアシンクロナスな機能を初期化する。
+  ros::AsyncSpinner spinner(4);
   spinner.start();
 
-  ros::WallDuration(1.0).sleep();
-  moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
-  //moveit::planning_interface::MoveGroupInterface group("xarm6");
-  moveit::planning_interface::MoveGroupInterface group("xarm7");
-  group.setPlanningTime(45.0);
+  VisualServoTest pnp(node_handle);
+  pnp.MoveToCognitionPose(node_handle);
+  pnp.DoApproach(node_handle);
+  pnp.VisualServo(node_handle);
 
-
-  geometry_msgs::Quaternion q;
-  GetQuaternionMsg(-M_PI, 0, 0, q);
-  ROS_INFO("Moving to cognition pose");
-  geometry_msgs::PoseStamped pose;
-  pose.header.frame_id = FIXED_FRAME;
-  pose.pose.position.x = 0.206873 + 0.05;
-  pose.pose.position.y = 0.0;
-  pose.pose.position.z = 0.111828 + 0.40;
-  pose.pose.orientation.x = q.x;
-  pose.pose.orientation.y = q.y;
-  pose.pose.orientation.z = q.z;
-  pose.pose.orientation.w = q.w;
-
-  group.setPoseTarget(pose);
-  if (!group.move()) {
-    ROS_WARN("Could not move to cognition pose");
-    return -1;
-  }
-
-  ros::Duration(2).sleep();
-
-  addCollisionObjects(planning_scene_interface);
-
-  // Wait a bit for ROS things to initialize
-  ros::WallDuration(1.0).sleep();
-
-  pick(group);
-
-  ros::WallDuration(1.0).sleep();
-
-  place(group);
-
-  ros::Duration(2).sleep();
-
-  RemoveBoxFromScene(planning_scene_interface);
-
+  spinner.stop();
+  // Wait until the node is shut down
   ros::waitForShutdown();
+
+  ros::shutdown();
   return 0;
 }
-
-// BEGIN_TUTORIAL
-// CALL_SUB_TUTORIAL table1
-// CALL_SUB_TUTORIAL table2
-// CALL_SUB_TUTORIAL object
-//
-// Pick Pipeline
-// ^^^^^^^^^^^^^
-// CALL_SUB_TUTORIAL pick1
-// openGripper function
-// """"""""""""""""""""
-// CALL_SUB_TUTORIAL open_gripper
-// CALL_SUB_TUTORIAL pick2
-// closedGripper function
-// """"""""""""""""""""""
-// CALL_SUB_TUTORIAL closed_gripper
-// CALL_SUB_TUTORIAL pick3
-//
-// Place Pipeline
-// ^^^^^^^^^^^^^^
-// CALL_SUB_TUTORIAL place
-// END_TUTORIAL
