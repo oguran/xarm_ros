@@ -58,9 +58,18 @@
 #include <tf2_ros/buffer_interface.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/CameraInfo.h>
+
 #include <opencv/cv.h>
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
+#include <image_geometry/pinhole_camera_model.h>
+#include <message_filters/subscriber.h>
+#include <message_filters/sync_policies/approximate_time.h>
+
+#include <visualization_msgs/Marker.h>
+#include <depth_image_proc/depth_traits.h>
 
 /**
  * @brief RPYからクオータニオンを取得する関数
@@ -126,6 +135,7 @@ void ShowControllerStatistics(ros::NodeHandle& node_handle,) {
 }
 #endif
 
+typedef message_filters::sync_policies::ApproximateTime<geometry_msgs::PoseStamped, sensor_msgs::Image, sensor_msgs::CameraInfo> DepthSyncPolicy;
 
 class VisualServoTest {
   public:
@@ -137,8 +147,13 @@ class VisualServoTest {
         arm_.setPoseReferenceFrame(FIXED_FRAME);
         gripper_.waitForServer();
 
-        pub_arm_cartesian_ = node_handle.advertise<geometry_msgs::PoseStamped>("/xarm/xarm6_cartesian_motion_controller/goal", 10);
-        sub_target_pose_ = node_handle.subscribe<geometry_msgs::PoseStamped>("/camera/target", 10, &VisualServoTest::DepthTargetCallback, this);
+        pub_arm_cartesian_ = node_handle.advertise<geometry_msgs::PoseStamped>("/xarm/xarm6_cartesian_motion_controller/goal", 1);
+        pub_marker_= node_handle.advertise<visualization_msgs::Marker>("marker", 1);
+        static message_filters::Subscriber<geometry_msgs::PoseStamped> sub_target(node_handle, "/xarm/camera/target", 1);
+        static message_filters::Subscriber<sensor_msgs::Image> sub_image(node_handle, "/xarm/camera/depth/image", 1);
+        static message_filters::Subscriber<sensor_msgs::CameraInfo> sub_cinfo(node_handle, "/xarm/camera/depth/camera_info", 1);
+        static message_filters::Synchronizer<DepthSyncPolicy> sync(DepthSyncPolicy(10), sub_target, sub_image, sub_cinfo);
+        sync.registerCallback(&VisualServoTest::DepthTargetCallback, this);
         ROS_INFO("Subscribe prepared!");
       }
 
@@ -185,7 +200,7 @@ class VisualServoTest {
     bool DoApproach(ros::NodeHandle& node_handle) {
       ROS_INFO("Opening gripper");
       control_msgs::GripperCommandGoal goal;
-      goal.command.position = 0.7;
+      goal.command.position = 0.0;
       gripper_.sendGoal(goal);
       bool finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(30));
       if (!finishedBeforeTimeout) {
@@ -200,7 +215,7 @@ class VisualServoTest {
         std::lock_guard<std::mutex> lock(mtx_);
         pose.pose.position.x = target_pose_.position.x;
         pose.pose.position.y = target_pose_.position.y;
-        pose.pose.position.z = target_pose_.position.z - 0.2;
+        pose.pose.position.z = target_pose_.position.z + 0.15;
 
         pose.pose.orientation.x = target_pose_.orientation.x;
         pose.pose.orientation.y = target_pose_.orientation.y;
@@ -218,11 +233,49 @@ class VisualServoTest {
             pose.pose.orientation.w
             );
 
+      std::cout << "Approached Pose = " << target_pose_ << std::endl;
+      approaced_pose_ = pose.pose;
       arm_.setPoseTarget(pose);
       if (!arm_.move()) {
         ROS_WARN("Could not approaching");
         return false;
       }
+
+
+      return true;
+    }
+
+    bool PreGrasp(ros::NodeHandle& node_handle) {
+      std::vector<std::string> start_controller;
+      start_controller.push_back("xarm6_cartesian_motion_controller");
+      std::vector<std::string> stop_controller;
+      stop_controller.push_back("xarm6_traj_controller");
+
+      if (false == SwitchController(node_handle, start_controller, stop_controller)) {
+        return false;
+      }
+      ros::Duration(2).sleep();
+
+      ROS_INFO("Moving to grasp pose");
+      geometry_msgs::PoseStamped pose;
+      pose.header.frame_id = FIXED_FRAME;
+
+      {
+        std::lock_guard<std::mutex> lock(mtx_);
+
+        pose.pose.position.x = target_pose_.position.x;
+        pose.pose.position.y = target_pose_.position.y;
+        pose.pose.position.z = target_pose_.position.z + 0.12;
+
+        pose.pose.orientation.x = target_pose_.orientation.x;
+        pose.pose.orientation.y = target_pose_.orientation.y;
+        pose.pose.orientation.z = target_pose_.orientation.z;
+        pose.pose.orientation.w = target_pose_.orientation.w;
+      }
+      std::cout << "Grasp Pose = " << target_pose_ << std::endl;
+      pub_arm_cartesian_.publish(pose);
+
+      ROS_INFO("Moved to picking pose");
 
       return true;
     }
@@ -273,30 +326,109 @@ class VisualServoTest {
       return true;
     }
 
-    void DepthTargetCallback(geometry_msgs::PoseStamped::ConstPtr const& msg) {
-      geometry_msgs::PoseStamped target_pose;
-      ros::Time now = ros::Time::now();
+    bool Grasp(ros::NodeHandle& node_handle) {
 
-      if (!tfBuffer_.canTransform(FIXED_FRAME, msg->header.frame_id, now, ros::Duration(1.0))) {
-        ROS_WARN("Could not lookup transform from %s to %s, in duration %f [sec]",
-            FIXED_FRAME, msg->header.frame_id.c_str(), 1.0f);
+      ROS_INFO("Start Grasp");
+      control_msgs::GripperCommandGoal goal;
+      goal.command.position = 0.4;
+      gripper_.sendGoal(goal);
+      bool finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(30));
+      if (!finishedBeforeTimeout) {
+        ROS_WARN("gripper_ open action did not complete");
+        return false;
+      }
+      ROS_INFO("Grasped");
+
+      return true;
+    }
+
+    bool PostGrasp(ros::NodeHandle& node_handle) {
+      ROS_INFO("Moving to PostGrasped pose");
+      geometry_msgs::PoseStamped pose;
+
+      pose.header.frame_id = FIXED_FRAME;
+      pose.pose = approaced_pose_;
+      pose.pose.position.z = approaced_pose_.position.z + 0.12;
+
+      std::cout << "PostGrasped Pose = " << approaced_pose_ << std::endl;
+      pub_arm_cartesian_.publish(pose);
+
+      ROS_INFO("Moved to PostGrasped pose");
+
+      return true;
+    }
+
+void DepthTargetCallback(const geometry_msgs::PoseStampedConstPtr& msg_target,
+        const sensor_msgs::ImageConstPtr& msg_image,
+        const sensor_msgs::CameraInfoConstPtr& msg_cinfo) {
+
+      geometry_msgs::PoseStamped target_pose;
+      geometry_msgs::PoseStamped approaching_pose;
+      //ros::Time now = ros::Time::now();
+
+      cam_model_.fromCameraInfo(msg_cinfo);
+      uint16_t u16_z = (uint16_t)msg_target->pose.position.z;
+
+      cv::Point2d rs_point(msg_target->pose.position.x, msg_target->pose.position.y);
+      cv::Point3d rs_ray = cam_model_.projectPixelTo3dRay(rs_point);
+
+      float target_d = depth_image_proc::DepthTraits<uint16_t>::toMeters(u16_z);
+
+      target_pose.header = msg_target->header;
+      target_pose.pose.position.x = rs_ray.x * target_d;
+      target_pose.pose.position.y = rs_ray.y * target_d;
+      target_pose.pose.position.z = target_d;
+      // TODO カメラのZ軸とGripperのZ軸が90度ずれている
+      GetQuaternionMsg(0, 0, -M_PI/2, target_pose.pose.orientation);
+
+      //std::cout << "target_pose.pose = " << target_pose.pose << std::endl;
+      {
+        visualization_msgs::Marker marker;
+        marker.header.frame_id = msg_image->header.frame_id;
+        marker.header.stamp = ros::Time::now();
+        marker.ns = "basic_shapes";
+        marker.id = 0;
+
+        marker.type = visualization_msgs::Marker::CUBE;
+        marker.action = visualization_msgs::Marker::ADD;
+        marker.lifetime = ros::Duration();
+
+        marker.scale.x = 0.01;
+        marker.scale.y = 0.01;
+        marker.scale.z = 0.01;
+        marker.pose.position.x = target_pose.pose.position.x;
+        marker.pose.position.y = target_pose.pose.position.y;
+        marker.pose.position.z = target_pose.pose.position.z;
+        marker.pose.orientation.x = target_pose.pose.orientation.x;
+        marker.pose.orientation.y = target_pose.pose.orientation.y;
+        marker.pose.orientation.z = target_pose.pose.orientation.z;
+        marker.pose.orientation.w = target_pose.pose.orientation.w;
+        marker.color.r = 0.0f;
+        marker.color.g = 1.0f;
+        marker.color.b = 0.0f;
+        marker.color.a = 1.0f;
+        pub_marker_.publish(marker);
+      }
+
+      if (!tfBuffer_.canTransform(FIXED_FRAME, cam_model_.tfFrame(), ros::Time(0), ros::Duration(1.0))) {
+        ROS_WARN("Could not lookup transform from world to %s, in duration %f [sec]",
+            cam_model_.tfFrame().c_str(), 1.0f);
         return;
       }
 
-      geometry_msgs::TransformStamped transform_stamped;
       try {
-        tfBuffer_.transform(*msg, target_pose, FIXED_FRAME, ros::Duration(1.0));
+        tfBuffer_.transform(target_pose, approaching_pose, FIXED_FRAME, ros::Duration(1.0));
       } catch (tf2::TransformException &ex) {
         ROS_WARN("%s", ex.what());
         return;
       }
 
-
+      //std::cout << "approaching_pose.pose = " << approaching_pose.pose << std::endl;
       {
         std::lock_guard<std::mutex> lock(mtx_);
 
-        target_pose_.position = target_pose.pose.position;
-        target_pose_.orientation = target_pose.pose.orientation;
+        target_pose_.position = approaching_pose.pose.position;
+        target_pose_.orientation = approaching_pose.pose.orientation;
 
         //if (target_pose_.position.z) pregrasped_= true;
       }
@@ -307,14 +439,16 @@ class VisualServoTest {
     moveit::planning_interface::PlanningSceneInterface scene_;
     actionlib::SimpleActionClient<control_msgs::GripperCommandAction> gripper_;
     ros::Publisher pub_arm_cartesian_;
-    ros::Subscriber sub_target_pose_;
+    ros::Publisher pub_marker_;
     const std::string PLANNING_GROUP = "xarm6";
     const std::string FIXED_FRAME = "world";
     geometry_msgs::Pose target_pose_;
+    geometry_msgs::Pose approaced_pose_;
     std::mutex mtx_;
     bool pregrasped_ = false;
     tf2_ros::Buffer tfBuffer_;
     tf2_ros::TransformListener tflistener_;
+    image_geometry::PinholeCameraModel cam_model_;
 };
 
 int main(int argc, char** argv)
@@ -322,15 +456,20 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "xarm6_demo_app1_node");
   ros::NodeHandle node_handle;
   // MoveIt!はアシンクロナスな計算をしないといけないので、このコードによりROSのアシンクロナスな機能を初期化する。
-  ros::AsyncSpinner spinner(4);
+  ros::AsyncSpinner spinner(10);
   spinner.start();
 
   VisualServoTest pnp(node_handle);
   pnp.MoveToCognitionPose(node_handle);
   pnp.DoApproach(node_handle);
-  pnp.VisualServo(node_handle);
+  pnp.PreGrasp(node_handle);
+      ros::Duration(2).sleep();
+  //pnp.VisualServo(node_handle);
+  pnp.Grasp(node_handle);
+      ros::Duration(2).sleep();
+  pnp.PostGrasp(node_handle);
 
-  spinner.stop();
+  //spinner.stop();
   // Wait until the node is shut down
   ros::waitForShutdown();
 
