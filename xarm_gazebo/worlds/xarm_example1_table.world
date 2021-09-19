@@ -13,7 +13,7 @@
       <pose>0.0 -0.84 0 0 0 0</pose>
     </include>
 
-    <model name="002_master_chef_can">
+    <model name="013_apple">
       <pose>-0.1 -0.84 1.015  0 0 0</pose>
       <static>true</static>
       <link name="body">
@@ -53,9 +53,9 @@
 
     <scene>
       <!-- Set blightness of world -->
-      <ambient>0.7 0.7 0.7 1</ambient>
+      <!-- <ambient>0.7 0.7 0.7 1</ambient>-->
       <!-- Set color of background -->
-      <background>0.1 0.1 0.1 1</background>
+      <!--<background>0.1 0.1 0.1 1</background>-->
     </scene>
 
     <physics type="ode" update_rate="100.0">

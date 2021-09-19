@@ -8,6 +8,7 @@ from geometry_msgs.msg import Point
 from geometry_msgs.msg import Quaternion
 from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import Image
+from sensor_msgs.msg import CameraInfo
 from cv_bridge import CvBridge
 
 class testNode():
@@ -16,16 +17,22 @@ class testNode():
         # Subscriberの作成
         sub_rgb = message_filters.Subscriber('/camera/color/image_raw', Image)
         sub_depth = message_filters.Subscriber('/camera/depth/image_raw', Image)
-        self.mf = message_filters.ApproximateTimeSynchronizer([sub_rgb, sub_depth], 100, 0.5)
+        sub_rgb_cinfo = message_filters.Subscriber('/camera/color/camera_info', CameraInfo)
+        sub_rgb_dinfo = message_filters.Subscriber('/camera/depth/camera_info', CameraInfo)
+        self.mf = message_filters.ApproximateTimeSynchronizer([sub_rgb, sub_depth, sub_rgb_cinfo, sub_rgb_dinfo], 100, 0.5)
         self.mf.registerCallback(self.callback)
         # Publisherの作成
-        self.pub_target = rospy.Publisher('/camera/target', PoseStamped, queue_size=5)
+        self.pub_target = rospy.Publisher('/xarm/camera/target', PoseStamped, queue_size=5)
+        self.pub_d_image = rospy.Publisher('/xarm/camera/depth/image', Image, queue_size=5)
+        self.pub_d_cinfo = rospy.Publisher('/xarm/camera/depth/camera_info', CameraInfo, queue_size=5)
         self.pub_dbg_1 = rospy.Publisher('/camera/debug', Image, queue_size=5)
         self.pub_dbg_2 = rospy.Publisher('/camera/debug2', Image, queue_size=5)
 
-    def callback(self, rgb_data, depth_data):
+    def callback(self, rgb_data, depth_data, c_camera_info, d_camera_info):
         #print('rgb   width = {}, height = {}'.format(rgb_data.width, rgb_data.height))
         #print('depth width = {}, height = {}'.format(depth_data.width, depth_data.height))
+        #print('c_info width = {}, height = {}'.format(c_camera_info.width, c_camera_info.height))
+        #print('d_info width = {}, height = {}'.format(d_camera_info.width, d_camera_info.height))
 
 
         try:
@@ -48,31 +55,57 @@ class testNode():
         for i in range(len(contours)):
             num_cont.append(len(np.array(contours[i])))
             #print('i={}, len={}, num_const={}'.format(i, len(np.array(contours[i])), num_cont[i]))
-        i_max = num_cont.index(max(num_cont))  # ノイズ除去のため、輪郭検出点数の多いcontoursを採用する
-        cv2.drawContours(img_con, contours[i_max], -1, 100, 2)
 
-        # 輪郭検出から物体中心を算出
-        x = np.mean(contours[i_max].T[0, 0])                                # 輪郭のx方向平均値を算出
-        y = np.mean(contours[i_max].T[1, 0])                                # 輪郭のy方向平均値を算出
+        if num_cont:    # リストが空ではない
+            i_max = num_cont.index(max(num_cont))  # 輪郭検出点数の一番多いcontoursを採用する
+            cv2.drawContours(img_con, contours[i_max], -1, 100, 2)
 
-        img_circle = cv2.circle(color_image, (int(x), int(y)), 30, 155, 3)  # 検出した位置にサークル描画
+            # 輪郭検出から物体中心を算出
+            x = np.mean(contours[i_max].T[0, 0])   # 輪郭のx方向平均値を算出
+            y = np.mean(contours[i_max].T[1, 0])   # 輪郭のy方向平均値を算出
+        else:
+            x = 0
+            y = 0
+
+        img_circle = cv2.circle(color_image, (int(x), int(y)), 20, 155, 3)  # 検出した位置にサークル描画
 
         send_img_circle = self.bridge.cv2_to_imgmsg(img_circle, rgb_data.encoding)  # ROS msgに変換
-        ofs = 320
-        x = x * float(depth_data.width - ofs) / float(rgb_data.width) + ofs/2
-        y = y * float(depth_data.height) / float(rgb_data.height)
+        # coloer/image_raw -> /depth/image_raw のx,y座標変換。
+        if depth_data.width > depth_data.height:    # アスペクト比が横が長い場合
+            # rgb image とdepteh imagaの縦の比率分引き延ばす（圧縮する）.
+            # その後、横を上記比率分引き伸ばし（圧縮し）、足りない分/2 をオフセットとする
+            gain = float(depth_data.height) / float(rgb_data.height)
+            ofs_x = (float(rgb_data.width) - float(depth_data.width) / gain) / 2
+            ofs_y = 0
+        else:
+            gain = float(depth_data.width) / float(rgb_data.width)
+            ofs_x = 0
+            ofs_y = (float(rgb_data.height) - float(depth_data.height) / gain) / 2
+        x = (x - ofs_x) * gain
+        y = (y - ofs_y) * gain
 
-        depth_image_4 = depth_image * 4
-        d_img_circle = cv2.circle(depth_image_4, (int(x), int(y)), 30, 255*256, 3)  # 検出した位置にサークル描画
-        send_d_img = self.bridge.cv2_to_imgmsg(d_img_circle, depth_data.encoding)   # ROS msgに変換
         d_img_array = np.array(depth_image)
+        if np.amax(d_img_array) > 255*256/4:
+            depth_image_mod = depth_image
+        else:
+            depth_image_mod = depth_image * 4
+        d_img_circle = cv2.circle(depth_image_mod, (int(x), int(y)), 10, 255*256, 3)    # 検出した位置にサークル描画
+        send_d_img = self.bridge.cv2_to_imgmsg(d_img_circle, depth_data.encoding)       # ROS msgに変換
+
+        if x > depth_data.width:
+            x = 0
+        if y > depth_data.height:
+            y = 0
         z_int16 = d_img_array[int(y),int(x)]
+
         ps = PoseStamped()
         ps.header = depth_data.header
-        ps.pose.position = Point(y/1000,x/1000,float(z_int16)/1000)
+        ps.pose.position = Point(x,y, (float)(z_int16))
         ps.pose.orientation = Quaternion(0.0, 0.0, 0.0, 1.0)
 
         self.pub_target.publish(ps)
+        self.pub_d_image.publish(depth_data)
+        self.pub_d_cinfo.publish(d_camera_info)
         self.pub_dbg_1.publish(send_img_circle)
         self.pub_dbg_2.publish(send_d_img)
 
