@@ -5,7 +5,9 @@
  * Author: Jason Peng <jason@ufactory.cc>
  ============================================================================*/
 
-#include "xarm_hw.h"
+#include "xarm_controller/xarm_hw.h"
+
+#define SERVICE_IS_PERSISTENT_BUT_INVALID 998
 
 namespace xarm_control
 {
@@ -76,9 +78,11 @@ namespace xarm_control
 		effort_cmd_.resize(dof_);
 		effort_fdb_.resize(dof_);
 
+		prev_cmds_float_.resize(dof_);
+
 		curr_err = 0;
 		curr_state = 0;
-		communication_timed_out = false;
+		service_fail_ret = 0;
 
 		pos_sub_ = root_nh.subscribe(jnt_state_topic, 100, &XArmHW::pos_fb_cb, this);
 		state_sub_ = root_nh.subscribe(xarm_state_topic, 100, &XArmHW::state_fb_cb, this);
@@ -142,9 +146,16 @@ namespace xarm_control
 
 	bool XArmHW::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw_nh)
 	{
+		bool velocity_control = false;
+		robot_hw_nh.getParam("velocity_control", velocity_control);
 		// ctrl_method_ = EFFORT; // INVALID
 		// ctrl_method_ = VELOCITY; // INVALID
-		ctrl_method_ = POSITION; // RELEASE
+		if (velocity_control) {
+			ctrl_method_ = VELOCITY;
+		}
+		else {
+			ctrl_method_ = POSITION; // default
+		}
 
 		hw_ns_ = robot_hw_nh.getNamespace() + "/";
 		ros::service::waitForService(hw_ns_+"motion_ctrl");
@@ -255,7 +266,6 @@ namespace xarm_control
 
 	void XArmHW::write(const ros::Time& time, const ros::Duration& period)
 	{
-		
 		if(initial_write_ || need_reset())
 		{
 			std::lock_guard<std::mutex> locker(mutex_);
@@ -284,14 +294,24 @@ namespace xarm_control
 		default:
 			{
 				for (int k = 0; k < dof_; k++) { position_cmd_float_[k] = (float)position_cmd_[k]; }
-				cmd_ret = xarm.setServoJ(position_cmd_float_);
+				cur_time_ = ros::Time::now();
+				elapsed_ = cur_time_ - prev_time_;
+				if (elapsed_.toSec() > 1 || _check_cmds_is_change(prev_cmds_float_, position_cmd_float_)) {
+					cmd_ret = xarm.setServoJ(position_cmd_float_);
+					if (cmd_ret == 0) {
+						prev_time_ = cur_time_;
+						for (int i = 0; i < prev_cmds_float_.size(); i++) { 
+							prev_cmds_float_[i] = (float)position_cmd_float_[i];
+						}
+					}
+				}	
 			}
 			break;
 		}
 
-		if(cmd_ret==3) // to reset controller, preempt current goal
-		{
-			communication_timed_out = true;
+		if (cmd_ret != 0 && cmd_ret != UXBUS_STATE::WAR_CODE) {
+			// to reset controller, preempt current goal
+			service_fail_ret = cmd_ret;
 		}
 		// for(int k=0; k<dof_; k++)
 		// {
@@ -310,6 +330,14 @@ namespace xarm_control
 		// initial_write_ = false;
 	}
 
+	bool XArmHW::_check_cmds_is_change(std::vector<float> prev, std::vector<float> cur, double threshold)
+    {
+        for (int i = 0; i < cur.size(); i++) {
+            if (std::abs(cur[i] - prev[i]) > threshold) return true;
+        }
+        return false;
+    }
+
 	void XArmHW::get_status(int state_mode_err[3])
 	{
 		state_mode_err[0] = curr_state;
@@ -320,19 +348,23 @@ namespace xarm_control
 	bool XArmHW::need_reset()
 	{	
 		static int last_err = 0;
-		if((ctrl_method_ == VELOCITY ? curr_mode != XARM_MODE::VELO_JOINT : curr_mode != XARM_MODE::SERVO) || curr_state==4 || curr_state==5 || curr_err || communication_timed_out)
+		if((ctrl_method_ == VELOCITY ? curr_mode != XARM_MODE::VELO_JOINT : curr_mode != XARM_MODE::SERVO) 
+			|| curr_state==4 || curr_state==5 || curr_err || service_fail_ret)
 		{
 			if(last_err != curr_err && curr_err)
 			{
 				ROS_ERROR("[ns: %s] xArm Error detected! Code: %d", hw_ns_.c_str(), curr_err);
 				last_err = curr_err;
 			}
-
-			if(communication_timed_out) // set robot state to stop once write time-out happens, for safety consideration
-			{
+			if (service_fail_ret != 0) {
 				int ret = xarm.setState(XARM_STATE::STOP);
-				ROS_ERROR("XArmHW::Write() Timed-out!, Setting Robot State to STOP... (ret: %d)", ret);
-				communication_timed_out = false;
+				ROS_ERROR("XArmHW::Write() failed, failed_ret=%d !, Setting Robot State to STOP... (ret: %d)", service_fail_ret, ret);
+				if (service_fail_ret == SERVICE_IS_PERSISTENT_BUT_INVALID) {
+					ROS_ERROR("service is invaild, ros shutdown");
+					ros::shutdown();
+	  				exit(1);
+				}
+				service_fail_ret = 0;
 			}
 			// ROS_ERROR("Need Reset returns true! ctrl_method_: %d, curr_mode: %d, curr_state: %d, curr_err: %d", ctrl_method_, curr_mode, curr_state, curr_err);
 			return true;
