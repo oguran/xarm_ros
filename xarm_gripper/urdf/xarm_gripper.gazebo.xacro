@@ -28,34 +28,49 @@
 
     <gazebo reference="${prefix}xarm_gripper_base_link">
       <selfCollide>false</selfCollide>
+      <dampingFactor>0.1</dampingFactor>
     </gazebo>
 
     <gazebo reference="${prefix}left_outer_knuckle">
       <selfCollide>false</selfCollide>
+      <kp>1e9</kp>
+      <kd>1e9</kd>
+      <dampingFactor>0.1</dampingFactor>
     </gazebo>
 
     <gazebo reference="${prefix}left_finger">
       <selfCollide>false</selfCollide>
       <mu1>10.0</mu1>
       <mu2>10.0</mu2>
+      <dampingFactor>0.1</dampingFactor>
     </gazebo>
 
     <gazebo reference="${prefix}left_inner_knuckle">
       <selfCollide>false</selfCollide>
+      <kp>1e9</kp>
+      <kd>1e9</kd>
+      <dampingFactor>0.1</dampingFactor>
     </gazebo>
 
     <gazebo reference="${prefix}right_outer_knuckle">
       <selfCollide>false</selfCollide>
+      <kp>1e9</kp>
+      <kd>1e9</kd>
+      <dampingFactor>0.1</dampingFactor>
     </gazebo>
 
     <gazebo reference="${prefix}right_finger">
       <selfCollide>false</selfCollide>
       <mu1>10.0</mu1>
       <mu2>10.0</mu2>
+      <dampingFactor>0.1</dampingFactor>
     </gazebo>
 
     <gazebo reference="${prefix}right_inner_knuckle">
       <selfCollide>false</selfCollide>
+      <kp>1e9</kp>
+      <kd>1e9</kd>
+      <dampingFactor>0.1</dampingFactor>
     </gazebo>
 
   </xacro:macro>
