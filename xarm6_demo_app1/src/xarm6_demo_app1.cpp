@@ -184,10 +184,12 @@ class VisualServoTest {
       }
 
       ROS_INFO("Initialized pose gripper");
-      control_msgs::GripperCommandGoal goal;
-      goal.command.position = 0.3;
-      gripper_.sendGoal(goal);
-      bool finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(30));
+      //control_msgs::GripperCommandGoal goal;
+      //goal.command.position = 0.3;
+      control_msgs::GripperCommandActionGoal goal;
+      goal.goal.command.position = 0.3;
+      gripper_.sendGoal(goal.goal);
+      bool finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(3));
       if (!finishedBeforeTimeout) {
         ROS_WARN("gripper_ open action did not complete");
         return false;
@@ -202,7 +204,7 @@ class VisualServoTest {
       control_msgs::GripperCommandGoal goal;
       goal.command.position = 0.0;
       gripper_.sendGoal(goal);
-      bool finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(30));
+      bool finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(3));
       if (!finishedBeforeTimeout) {
         ROS_WARN("gripper_open action did not complete");
         return false;
@@ -215,7 +217,7 @@ class VisualServoTest {
         std::lock_guard<std::mutex> lock(mtx_);
         pose.pose.position.x = target_pose_.position.x;
         pose.pose.position.y = target_pose_.position.y;
-        pose.pose.position.z = target_pose_.position.z + 0.15;
+        pose.pose.position.z = target_pose_.position.z + 0.10;
 
         pose.pose.orientation.x = target_pose_.orientation.x;
         pose.pose.orientation.y = target_pose_.orientation.y;
@@ -265,7 +267,7 @@ class VisualServoTest {
 
         pose.pose.position.x = target_pose_.position.x;
         pose.pose.position.y = target_pose_.position.y;
-        pose.pose.position.z = target_pose_.position.z + 0.12;
+        pose.pose.position.z = target_pose_.position.z + 0.105;
 
         pose.pose.orientation.x = target_pose_.orientation.x;
         pose.pose.orientation.y = target_pose_.orientation.y;
@@ -330,9 +332,10 @@ class VisualServoTest {
 
       ROS_INFO("Start Grasp");
       control_msgs::GripperCommandGoal goal;
-      goal.command.position = 0.4;
+      goal.command.position = 0.5;
+      goal.command.max_effort = 10;
       gripper_.sendGoal(goal);
-      bool finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(30));
+      bool finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(3));
       if (!finishedBeforeTimeout) {
         ROS_WARN("gripper_ open action did not complete");
         return false;
@@ -463,10 +466,9 @@ int main(int argc, char** argv)
   pnp.MoveToCognitionPose(node_handle);
   pnp.DoApproach(node_handle);
   pnp.PreGrasp(node_handle);
-      ros::Duration(2).sleep();
+  ros::Duration(5).sleep();
   //pnp.VisualServo(node_handle);
   pnp.Grasp(node_handle);
-      ros::Duration(2).sleep();
   pnp.PostGrasp(node_handle);
 
   //spinner.stop();

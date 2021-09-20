@@ -13,6 +13,13 @@
       <pose>0.0 -0.84 0 0 0 0</pose>
     </include>
 
+    <include>
+      <uri>model://cricket_ball</uri>
+      <name>cricket_ball</name>
+      <pose>-0.1 -0.84 1.015  0 0 0</pose>
+    </include>
+
+<!--
     <model name="013_apple">
       <pose>-0.1 -0.84 1.015  0 0 0</pose>
       <static>true</static>
@@ -25,7 +32,6 @@
       </link>
     </model>
 
-<!--
     <model name="055_baseball">
       <pose>-0.1 -0.84 1.015  0 0 0</pose>
       <static>true</static>
