@@ -18,7 +18,7 @@
         <joint name="joint5" />
         <joint name="joint6" />
         <joint name="joint_eef" />
-        <!-- To count in gripper TCP offset, if no need, please uncomment following 2 lines -->
+        <!-- To count in gripper TCP(Tool Center Point) offset, if no need, please uncomment following 2 lines -->
         <joint name="gripper_fix" />
         <joint name="joint_tcp" />
     </group>

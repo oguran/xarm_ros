@@ -225,24 +225,39 @@ class VisualServoTest {
         pose.pose.orientation.w = target_pose_.orientation.w;
       }
 
-        ROS_WARN("position = %f, %f, %f  orientation = %f, %f, %f, %f",
-            pose.pose.position.x,
-            pose.pose.position.y,
-            pose.pose.position.z,
-            pose.pose.orientation.x,
-            pose.pose.orientation.y,
-            pose.pose.orientation.z,
-            pose.pose.orientation.w
-            );
+      ROS_INFO("link_eff position = %f, %f, %f orientation = %f, %f, %f, %f",
+          pose.pose.position.x,
+          pose.pose.position.y,
+          pose.pose.position.z,
+          pose.pose.orientation.x,
+          pose.pose.orientation.y,
+          pose.pose.orientation.z,
+          pose.pose.orientation.w
+          );
 
-      std::cout << "Approached Pose = " << target_pose_ << std::endl;
-      approaced_pose_ = pose.pose;
       arm_.setPoseTarget(pose);
       if (!arm_.move()) {
         ROS_WARN("Could not approaching");
         return false;
       }
 
+      ros::Duration(2).sleep();
+
+      geometry_msgs::TransformStamped approached_ts;
+      try { // link_tcpの現座標を取得
+        approached_ts = tfBuffer_.lookupTransform(FIXED_FRAME, "link_tcp", ros::Time(0), ros::Duration(1.0));
+      } catch (tf2::TransformException &ex) {
+        ROS_WARN("%s", ex.what());
+        return false;
+      }
+      auto at = approached_ts.transform;
+      approaced_pose_.position.x = at.translation.x;
+      approaced_pose_.position.y = at.translation.y;
+      approaced_pose_.position.z = at.translation.z;
+      approaced_pose_.orientation.x = at.rotation.x;
+      approaced_pose_.orientation.y = at.rotation.y;
+      approaced_pose_.orientation.z = at.rotation.z;
+      approaced_pose_.orientation.w = at.rotation.w;
 
       return true;
     }
@@ -265,9 +280,9 @@ class VisualServoTest {
       {
         std::lock_guard<std::mutex> lock(mtx_);
 
-        pose.pose.position.x = target_pose_.position.x;
+        pose.pose.position.x = target_pose_.position.x + 0.01;
         pose.pose.position.y = target_pose_.position.y;
-        pose.pose.position.z = target_pose_.position.z + 0.105;
+        pose.pose.position.z = target_pose_.position.z - 0.07;
 
         pose.pose.orientation.x = target_pose_.orientation.x;
         pose.pose.orientation.y = target_pose_.orientation.y;
@@ -351,7 +366,7 @@ class VisualServoTest {
 
       pose.header.frame_id = FIXED_FRAME;
       pose.pose = approaced_pose_;
-      pose.pose.position.z = approaced_pose_.position.z + 0.12;
+      pose.pose.position.z = approaced_pose_.position.z;
 
       std::cout << "PostGrasped Pose = " << approaced_pose_ << std::endl;
       pub_arm_cartesian_.publish(pose);
@@ -381,7 +396,7 @@ void DepthTargetCallback(const geometry_msgs::PoseStampedConstPtr& msg_target,
       target_pose.pose.position.x = rs_ray.x * target_d;
       target_pose.pose.position.y = rs_ray.y * target_d;
       target_pose.pose.position.z = target_d;
-      // TODO カメラのZ軸とGripperのZ軸が90度ずれている
+      // TODO カメラのyawとGripperのyawが90度ずれている
       GetQuaternionMsg(0, 0, -M_PI/2, target_pose.pose.orientation);
 
       //std::cout << "target_pose.pose = " << target_pose.pose << std::endl;

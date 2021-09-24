@@ -49,7 +49,7 @@
       <joint name="${prefix}joint4" />
       <joint name="${prefix}joint5" />
       <joint name="${prefix}joint6" />
-      <!-- To count in gripper TCP offset, if no need, please uncomment following 2 lines -->
+      <!-- To count in gripper TCP(Tool Center Point) offset, if no need, please uncomment following 2 lines -->
       <xacro:if value="${_use_gripper}">
         <joint name="${prefix}gripper_fix" />
         <joint name="${prefix}joint_tcp" />

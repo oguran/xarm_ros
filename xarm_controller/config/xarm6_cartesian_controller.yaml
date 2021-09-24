@@ -1,7 +1,7 @@
 xarm:
   xarm6_cartesian_motion_controller:
     type: "position_controllers/CartesianMotionController"
-    end_effector_link: "link_eef"
+    end_effector_link: "link_tcp"
     robot_base_link: "world"
     target_frame_topic: "goal"
     joints:
@@ -13,16 +13,16 @@ xarm:
     - joint6
 
     pd_gains:
-        trans_x: {p: 1.0}
-        trans_y: {p: 1.0}
-        trans_z: {p: 1.0}
+        trans_x: {p: 0.8}
+        trans_y: {p: 0.8}
+        trans_z: {p: 0.8}
         rot_x: {p: 1.0}
         rot_y: {p: 1.0}
         rot_z: {p: 1.0}
 
   xarm6_cartesian_motion_controller_velocity:
     type: "velocity_controllers/CartesianMotionController"
-    end_effector_link: "link_eef"
+    end_effector_link: "link_tcp"
     robot_base_link: "world"
     target_frame_topic: "goal"
     joints:
@@ -43,7 +43,7 @@ xarm:
 
   xarm6_motion_control_handle:
      type: "cartesian_controllers/MotionControlHandle"
-     end_effector_link: "link_eef"
+     end_effector_link: "link_tcp"
      robot_base_link: "world"
      target_frame_topic: "/xarm6_cartesian_motion_controller/goal"
      joints:
