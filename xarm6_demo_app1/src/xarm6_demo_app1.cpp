@@ -101,6 +101,19 @@ void GetRPY(const geometry_msgs::Quaternion &q,
   tf::Matrix3x3(quat).getRPY(roll, pitch, yaw);
 }
 
+void transformTFStampedToPoseStamped(
+    geometry_msgs::TransformStamped ts,
+    geometry_msgs::PoseStamped& ps) {
+  ps.header = ts.header;
+  ps.pose.position.x = ts.transform.translation.x;
+  ps.pose.position.y = ts.transform.translation.y;
+  ps.pose.position.z = ts.transform.translation.z;
+  ps.pose.orientation.x = ts.transform.rotation.x;
+  ps.pose.orientation.y = ts.transform.rotation.y;
+  ps.pose.orientation.z = ts.transform.rotation.z;
+  ps.pose.orientation.w = ts.transform.rotation.w;
+}
+
 bool SwitchController(ros::NodeHandle& node_handle,
     std::vector<std::string> start_controller,
     std::vector<std::string> stop_controller) {
@@ -250,14 +263,7 @@ class VisualServoTest {
         ROS_WARN("%s", ex.what());
         return false;
       }
-      auto at = approached_ts.transform;
-      approaced_pose_.position.x = at.translation.x;
-      approaced_pose_.position.y = at.translation.y;
-      approaced_pose_.position.z = at.translation.z;
-      approaced_pose_.orientation.x = at.rotation.x;
-      approaced_pose_.orientation.y = at.rotation.y;
-      approaced_pose_.orientation.z = at.rotation.z;
-      approaced_pose_.orientation.w = at.rotation.w;
+      transformTFStampedToPoseStamped(approached_ts, approaced_pose_);
 
       return true;
     }
@@ -362,14 +368,9 @@ class VisualServoTest {
 
     bool PostGrasp(ros::NodeHandle& node_handle) {
       ROS_INFO("Moving to PostGrasped pose");
-      geometry_msgs::PoseStamped pose;
-
-      pose.header.frame_id = FIXED_FRAME;
-      pose.pose = approaced_pose_;
-      pose.pose.position.z = approaced_pose_.position.z;
 
       std::cout << "PostGrasped Pose = " << approaced_pose_ << std::endl;
-      pub_arm_cartesian_.publish(pose);
+      pub_arm_cartesian_.publish(approaced_pose_);
 
       ROS_INFO("Moved to PostGrasped pose");
 
@@ -461,7 +462,7 @@ void DepthTargetCallback(const geometry_msgs::PoseStampedConstPtr& msg_target,
     const std::string PLANNING_GROUP = "xarm6";
     const std::string FIXED_FRAME = "world";
     geometry_msgs::Pose target_pose_;
-    geometry_msgs::Pose approaced_pose_;
+    geometry_msgs::PoseStamped approaced_pose_;
     std::mutex mtx_;
     bool pregrasped_ = false;
     tf2_ros::Buffer tfBuffer_;
