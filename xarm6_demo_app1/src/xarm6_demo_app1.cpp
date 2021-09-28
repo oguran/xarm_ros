@@ -746,23 +746,35 @@ void DepthTargetCallback(const geometry_msgs::PoseStampedConstPtr& msg_target,
 
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "xarm6_demo_app1_node");
+  static const std::string MY_NODE_NAME = "xarm6_demo_app1_node";
+  static const std::string PARAM_VELCTL = "/" + MY_NODE_NAME + "/velocity_control";
+  ros::init(argc, argv, MY_NODE_NAME);
   ros::NodeHandle node_handle;
   // MoveIt!はアシンクロナスな計算をしないといけないので、このコードによりROSのアシンクロナスな機能を初期化する。
   ros::AsyncSpinner spinner(10);
   spinner.start();
 
+  if(!node_handle.hasParam(PARAM_VELCTL))
+  {
+    ROS_ERROR("No velocity_control parameter specified!");
+    exit(-1);
+  }
+  bool velctl = false;
+  node_handle.getParam(PARAM_VELCTL, velctl);
+  ROS_INFO("param velocity_control = %s", velctl ? "true" : "false");
+
+
   VisualServoTest pnp(node_handle);
   pnp.MoveToCognitionPose(node_handle);
   pnp.DoApproach(node_handle);
-#if 0 // Position Control
-  pnp.PreGrasp(node_handle);
-  ros::Duration(5).sleep();
-  pnp.Grasp(node_handle);
-  pnp.PostGrasp(node_handle);
-#else // Velocity Control
-  pnp.PickVelocity(node_handle);
-#endif
+  if (velctl) {
+    pnp.PickVelocity(node_handle);
+  } else {
+    pnp.PreGrasp(node_handle);
+    ros::Duration(5).sleep();
+    pnp.Grasp(node_handle);
+    pnp.PostGrasp(node_handle);
+  }
 
   //spinner.stop();
   // Wait until the node is shut down

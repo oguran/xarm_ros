@@ -2,6 +2,7 @@
 
   <!-- By default, we are not in debug mode -->
   <arg name="debug" default="false" />
+  <arg name="velocity_control" default="false" />
 
   <!-- GDB Debug Option -->
   <arg unless="$(arg debug)" name="launch_prefix" value="" />
@@ -9,9 +10,7 @@
      value="gdb -x $(find panda_moveit_config)/launch/gdb_settings.gdb --ex run --args" />
 
   <node name="xarm6_demo_app1_node" pkg="xarm6_demo_app1" type="xarm6_demo_app1_node" respawn="false" launch-prefix="$(arg launch_prefix)" output="screen">
-    <param name="place_px" value="0.3"/>
-    <param name="place_py" value="-0.15"/>
-    <param name="place_pz" value="0.15"/>
+    <param name="velocity_control" value="$(eval 'true' if arg('velocity_control') else 'false')"/>
   </node>
 
 </launch>
