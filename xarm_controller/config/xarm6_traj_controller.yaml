@@ -47,12 +47,12 @@ xarm:
     #     joint5: {trajectory: 1, goal: 0.01}
     #     joint6: {trajectory: 1, goal: 0.01}
     gains:
-      joint1: {p: 1, i: 0.0, d: 0.0, i_clamp: 1}
-      joint2: {p: 1, i: 0.0, d: 0.0, i_clamp: 1}
-      joint3: {p: 1, i: 0.0, d: 0.0, i_clamp: 1}
-      joint4: {p: 1, i: 0.0, d: 0.0, i_clamp: 1}
-      joint5: {p: 1, i: 0.0, d: 0.0, i_clamp: 1}
-      joint6: {p: 1, i: 0.0, d: 0.0, i_clamp: 1}
+      joint1: {p: 3, i: 0.0, d: 0.0, i_clamp: 1}
+      joint2: {p: 3, i: 0.0, d: 0.0, i_clamp: 1}
+      joint3: {p: 3, i: 0.0, d: 0.0, i_clamp: 1}
+      joint4: {p: 3, i: 0.0, d: 0.0, i_clamp: 1}
+      joint5: {p: 3, i: 0.0, d: 0.0, i_clamp: 1}
+      joint6: {p: 3, i: 0.0, d: 0.0, i_clamp: 1}
     velocity_ff:
       joint1: 0.82
       joint2: 0.82
