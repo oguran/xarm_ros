@@ -56,6 +56,7 @@
 
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/buffer_interface.h>
+#include <tf2_ros/transform_broadcaster.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include <sensor_msgs/Image.h>
@@ -246,6 +247,139 @@ class VisualServoTest {
 
 
       arm_.setPoseTarget(pose);
+      if (!arm_.move()) {
+        ROS_WARN("Could not approaching");
+        return false;
+      }
+
+      ros::Duration(2).sleep();
+
+      geometry_msgs::TransformStamped approached_ts;
+      try { // link_tcpの現座標を取得
+        approached_ts = tfBuffer_.lookupTransform(FIXED_FRAME, "link_tcp", ros::Time(0), ros::Duration(1.0));
+      } catch (tf2::TransformException &ex) {
+        ROS_WARN("%s", ex.what());
+        return false;
+      }
+      transformTFStampedToPoseStamped(approached_ts, approaced_pose_);
+
+      return true;
+    }
+
+    bool DoApproachRotation(ros::NodeHandle& node_handle) {
+      ROS_INFO("Rotation");
+      geometry_msgs::PoseStamped global_pose;
+      geometry_msgs::PoseStamped tgt_based_pose;
+      global_pose.header.frame_id = FIXED_FRAME;
+      {
+        std::lock_guard<std::mutex> lock(mtx_);
+        global_pose.pose.position.x = target_pose_.position.x;
+        global_pose.pose.position.y = target_pose_.position.y;
+        global_pose.pose.position.z = target_pose_.position.z + 0.10;
+
+        global_pose.pose.orientation.x = target_pose_.orientation.x;
+        global_pose.pose.orientation.y = target_pose_.orientation.y;
+        global_pose.pose.orientation.z = target_pose_.orientation.z;
+        global_pose.pose.orientation.w = target_pose_.orientation.w;
+      }
+
+      ROS_INFO("Global_based position = %f, %f, %f orientation = %f, %f, %f, %f",
+          global_pose.pose.position.x,
+          global_pose.pose.position.y,
+          global_pose.pose.position.z,
+          global_pose.pose.orientation.x,
+          global_pose.pose.orientation.y,
+          global_pose.pose.orientation.z,
+          global_pose.pose.orientation.w
+          );
+
+      double roll, pitch, yaw;
+      GetRPY(global_pose.pose.orientation, roll, pitch, yaw);
+      ROS_INFO("Global_based roll, pitch, yaw  = %f, %f, %f", (float)roll, (float)pitch, (float)yaw);
+
+      // 把持対象物を基準とした座標系に変換
+      if (!tfBuffer_.canTransform(TARGET_FRAME, FIXED_FRAME, ros::Time(0), ros::Duration(10.0))) {
+        ROS_WARN("Could not lookup transform from world to %s, in duration %f [sec]",
+            TARGET_FRAME.c_str(), 1.0f);
+        return false;
+      }
+
+      try {
+        tfBuffer_.transform(global_pose, tgt_based_pose, TARGET_FRAME, ros::Duration(1.0));
+      } catch (tf2::TransformException &ex) {
+        ROS_WARN("%s", ex.what());
+        return false;
+      }
+
+      ROS_INFO("Target_based position = %f, %f, %f orientation = %f, %f, %f, %f",
+          tgt_based_pose.pose.position.x,
+          tgt_based_pose.pose.position.y,
+          tgt_based_pose.pose.position.z,
+          tgt_based_pose.pose.orientation.x,
+          tgt_based_pose.pose.orientation.y,
+          tgt_based_pose.pose.orientation.z,
+          tgt_based_pose.pose.orientation.w
+          );
+
+      GetRPY(tgt_based_pose.pose.orientation, roll, pitch, yaw);
+      ROS_INFO("Target_based roll, pitch, yaw  = %f, %f, %f", (float)roll, (float)pitch, (float)yaw);
+
+      double theta;
+#if 0
+      // Z axis (Yaw) rotation
+      theta = M_PI/2;
+      tgt_based_pose.pose.position.x = tgt_based_pose.pose.position.x * cos(theta) - tgt_based_pose.pose.position.y * sin(theta);
+      tgt_based_pose.pose.position.y = tgt_based_pose.pose.position.x * sin(theta) + tgt_based_pose.pose.position.y * cos(theta);
+      yaw += theta;
+      GetQuaternionMsg(roll, pitch, yaw, tgt_based_pose.pose.orientation);
+#endif
+
+#if 1
+      // Y axis (Pitch) rotation
+      theta = M_PI/6;
+      tgt_based_pose.pose.position.x = tgt_based_pose.pose.position.x * sin(theta) + tgt_based_pose.pose.position.z * sin(theta);
+      tgt_based_pose.pose.position.z = -tgt_based_pose.pose.position.x * sin(theta) + tgt_based_pose.pose.position.z * cos(theta);
+      pitch += theta;
+      GetQuaternionMsg(roll, pitch, yaw, tgt_based_pose.pose.orientation);
+#endif
+
+#if 0
+      // X axis (Roll) rotation
+      theta = M_PI/6;
+      tgt_based_pose.pose.position.y = tgt_based_pose.pose.position.y * cos(theta) - tgt_based_pose.pose.position.z * sin(theta);
+      tgt_based_pose.pose.position.z = tgt_based_pose.pose.position.y * sin(theta) + tgt_based_pose.pose.position.z * cos(theta);
+      roll += theta;
+      GetQuaternionMsg(roll, pitch, yaw, tgt_based_pose.pose.orientation);
+#endif
+
+      // Global座標を基準とした座標系に変換
+      if (!tfBuffer_.canTransform(FIXED_FRAME, TARGET_FRAME, ros::Time(0), ros::Duration(10.0))) {
+        ROS_WARN("Could not lookup transform from world to %s, in duration %f [sec]",
+            TARGET_FRAME.c_str(), 1.0f);
+        return false;
+      }
+
+      try {
+        tfBuffer_.transform(tgt_based_pose, global_pose, FIXED_FRAME, ros::Duration(1.0));
+      } catch (tf2::TransformException &ex) {
+        ROS_WARN("%s", ex.what());
+        return false;
+      }
+
+      ROS_INFO("Global_based position = %f, %f, %f orientation = %f, %f, %f, %f",
+          global_pose.pose.position.x,
+          global_pose.pose.position.y,
+          global_pose.pose.position.z,
+          global_pose.pose.orientation.x,
+          global_pose.pose.orientation.y,
+          global_pose.pose.orientation.z,
+          global_pose.pose.orientation.w
+          );
+
+      GetRPY(global_pose.pose.orientation, roll, pitch, yaw);
+      ROS_INFO("Global_based roll, pitch, yaw  = %f, %f, %f", (float)roll, (float)pitch, (float)yaw);
+
+      arm_.setPoseTarget(global_pose);
       if (!arm_.move()) {
         ROS_WARN("Could not approaching");
         return false;
@@ -570,6 +704,8 @@ class VisualServoTest {
         diff[1].pose.orientation.z = p_target->pose.orientation.z - current_pose.pose.orientation.z;
         diff[1].pose.orientation.w = p_target->pose.orientation.w - current_pose.pose.orientation.w;
 
+        // TODO 案1：オイラー角でPID計算の後、Quaternionに変換
+        // TODO 案2：Quaternionによる回転の補完
         integral.pose.position.x += (diff[1].pose.position.x + diff[0].pose.position.x) / 2.0 * DELTA_T;
         integral.pose.position.y += (diff[1].pose.position.y + diff[0].pose.position.y) / 2.0 * DELTA_T;
         integral.pose.position.z += (diff[1].pose.position.z + diff[0].pose.position.z) / 2.0 * DELTA_T;
@@ -713,6 +849,22 @@ class VisualServoTest {
         target_pose_.position = approaching_pose.pose.position;
         target_pose_.orientation = approaching_pose.pose.orientation;
       }
+
+      // 把持対象物のTFを作成＆bradcastする
+      tf2_ros::TransformBroadcaster br;
+      geometry_msgs::TransformStamped tfs;
+
+      tfs.header.frame_id = FIXED_FRAME;
+      tfs.child_frame_id = TARGET_FRAME;
+      tfs.transform.translation.x = target_pose_.position.x;
+      tfs.transform.translation.y = target_pose_.position.y;
+      tfs.transform.translation.z = target_pose_.position.z;
+      tfs.transform.rotation.x = target_pose_.orientation.x;
+      tfs.transform.rotation.y = target_pose_.orientation.y;
+      tfs.transform.rotation.z = target_pose_.orientation.z;
+      tfs.transform.rotation.w = target_pose_.orientation.w;;
+
+      br.sendTransform(tfs);
     }
 
   private:
@@ -936,6 +1088,7 @@ class VisualServoTest {
 
     const std::string PLANNING_GROUP = "xarm6";
     const std::string FIXED_FRAME = "world";
+    const std::string TARGET_FRAME = "target";
     const unsigned int CAR_CTL_DURATION = 50;
     const float CAR_CTL_VEL_P = 2.0;
     const float CAR_CTL_VEL_R = 2.0;
@@ -965,14 +1118,19 @@ int main(int argc, char** argv)
   VisualServoTest pnp(node_handle);
   pnp.MoveToCognitionPose(node_handle);
   pnp.DoApproach(node_handle);
+  pnp.DoApproachRotation(node_handle);
+#if 1
   if (velctl) {
     pnp.PickVelocity(node_handle);
   } else {
-    pnp.PreGraspVelocity(node_handle);
+    pnp.PreGrasp(node_handle);
+    //pnp.PreGraspVelocity(node_handle);
     ros::Duration(5).sleep();
     pnp.Grasp(node_handle);
-    pnp.PostGraspVelocity(node_handle);
+    pnp.PostGrasp(node_handle);
+    //pnp.PostGraspVelocity(node_handle);
   }
+#endif
 
   //spinner.stop();
   // Wait until the node is shut down
