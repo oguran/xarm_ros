@@ -115,9 +115,9 @@ void transformTFStampedToPoseStamped(
   ps.pose.orientation.w = ts.transform.rotation.w;
 }
 
-bool SwitchController(ros::NodeHandle& node_handle,
-    std::vector<std::string> start_controller,
-    std::vector<std::string> stop_controller) {
+bool SwitchController(ros::NodeHandle &node_handle,
+    const std::vector<std::string> start_controller,
+    const std::vector<std::string> stop_controller) {
 
   ros::ServiceClient switch_controller =
     node_handle.serviceClient<controller_manager_msgs::SwitchController>("xarm/controller_manager/switch_controller");
@@ -140,7 +140,7 @@ bool SwitchController(ros::NodeHandle& node_handle,
   return true;
 }
 
-void copyPose(geometry_msgs::Pose& src, geometry_msgs::Pose& dst) {
+void copyPose(const geometry_msgs::Pose &src, geometry_msgs::Pose &dst) {
   dst.position.x = src.position.x;
   dst.position.y = src.position.y;
   dst.position.z = src.position.z;
@@ -151,7 +151,7 @@ void copyPose(geometry_msgs::Pose& src, geometry_msgs::Pose& dst) {
   dst.orientation.w = src.orientation.w;
 }
 
-void printPose(std::string msg, geometry_msgs::Pose pose) {
+void printPose(std::string const& msg, const geometry_msgs::Pose &pose) {
   ROS_INFO("%s position = %f, %f, %f orientation = %f, %f, %f, %f",
       msg.c_str(),
       pose.position.x,
@@ -164,7 +164,7 @@ void printPose(std::string msg, geometry_msgs::Pose pose) {
       );
 }
 
-void printEuler(std::string msg, float roll, float pitch, float yaw) {
+void printEuler(std::string const& msg, float roll, float pitch, float yaw) {
   ROS_INFO("%s roll, pitch, yaw  = %f, %f, %f", msg.c_str(), (float)roll, (float)pitch, (float)yaw);
 }
 
@@ -252,12 +252,12 @@ class VisualServoTest {
         std::lock_guard<std::mutex> lock(mtx_);
         copyPose(target_pose_, target_pose_1st_.pose);
       }
+      target_pose_1st_.pose.position.z += 0.10;
 
       printPose("link_eff", target_pose_1st_.pose);
       double roll, pitch, yaw;
       GetRPY(target_pose_1st_.pose.orientation, roll, pitch, yaw);
       printEuler("Approached", roll, pitch, yaw);
-
 
       arm_.setPoseTarget(target_pose_1st_);
       if (!arm_.move()) {
@@ -283,17 +283,17 @@ class VisualServoTest {
       ROS_INFO("Rotation");
       geometry_msgs::PoseStamped l_grasp_pose[2];
       geometry_msgs::PoseStamped tgt_based_pose;
-      grasp_pose_[0].header.frame_id = FIXED_FRAME;
+      grasp_pose_[PREGRASP_POSE].header.frame_id = FIXED_FRAME;
       {
         std::lock_guard<std::mutex> lock(mtx_);
-        copyPose(target_pose_, grasp_pose_[0].pose);
+        copyPose(target_pose_, grasp_pose_[PREGRASP_POSE].pose);
       }
-      grasp_pose_[0].pose.position.z += 0.10;
+      grasp_pose_[PREGRASP_POSE].pose.position.z += 0.10;
 
-      printPose("Global_based", grasp_pose_[0].pose);
+      printPose("Global_based", grasp_pose_[PREGRASP_POSE].pose);
 
       double roll, pitch, yaw;
-      GetRPY(grasp_pose_[0].pose.orientation, roll, pitch, yaw);
+      GetRPY(grasp_pose_[PREGRASP_POSE].pose.orientation, roll, pitch, yaw);
       printEuler("Global_based", roll, pitch, yaw);
 
       // 把持対象物を基準とした座標系に変換
@@ -304,20 +304,21 @@ class VisualServoTest {
       }
 
       try {
-        tfBuffer_.transform(grasp_pose_[0], l_grasp_pose[0], TARGET_FRAME, ros::Duration(1.0));
+        tfBuffer_.transform(grasp_pose_[PREGRASP_POSE], l_grasp_pose[PREGRASP_POSE], TARGET_FRAME, ros::Duration(1.0));
       } catch (tf2::TransformException &ex) {
         ROS_WARN("%s", ex.what());
         return false;
       }
 
-      printPose("Target_based", l_grasp_pose[0].pose);
-      GetRPY(l_grasp_pose[0].pose.orientation, roll, pitch, yaw);
+      printPose("Target_based", l_grasp_pose[PREGRASP_POSE].pose);
+      GetRPY(l_grasp_pose[PREGRASP_POSE].pose.orientation, roll, pitch, yaw);
       printEuler("Target_based", roll, pitch, yaw);
 
-      l_grasp_pose[1].header.frame_id = TARGET_FRAME;
-      copyPose(l_grasp_pose[0].pose, l_grasp_pose[1].pose);
-      l_grasp_pose[1].pose.position.x += 0.01;
-      l_grasp_pose[1].pose.position.z -= 0.06;
+      l_grasp_pose[GRASP_POSE].header.frame_id = TARGET_FRAME;
+      copyPose(l_grasp_pose[PREGRASP_POSE].pose, l_grasp_pose[GRASP_POSE].pose);
+      //l_grasp_pose[GRASP_POSE].pose.position.x += 0.01;
+      //l_grasp_pose[GRASP_POSE].pose.position.z -= 0.06;
+      l_grasp_pose[GRASP_POSE].pose.position.z += 0.14;
 
       double theta;
 #if 0
@@ -332,13 +333,13 @@ class VisualServoTest {
 #if 1
       // Y axis (Pitch) rotation
       theta = M_PI/6;
-      l_grasp_pose[0].pose.position.x = l_grasp_pose[0].pose.position.x * sin(theta) + l_grasp_pose[0].pose.position.z * sin(theta);
-      l_grasp_pose[1].pose.position.x = l_grasp_pose[1].pose.position.x * sin(theta) + l_grasp_pose[1].pose.position.z * sin(theta);
-      l_grasp_pose[0].pose.position.z = -l_grasp_pose[0].pose.position.x * sin(theta) + l_grasp_pose[0].pose.position.z * cos(theta);
-      l_grasp_pose[1].pose.position.z = -l_grasp_pose[1].pose.position.x * sin(theta) + l_grasp_pose[1].pose.position.z * cos(theta);
+      l_grasp_pose[PREGRASP_POSE].pose.position.x = l_grasp_pose[PREGRASP_POSE].pose.position.x * sin(theta) + l_grasp_pose[PREGRASP_POSE].pose.position.z * sin(theta);
+      l_grasp_pose[GRASP_POSE].pose.position.x = l_grasp_pose[GRASP_POSE].pose.position.x * sin(theta) + l_grasp_pose[GRASP_POSE].pose.position.z * sin(theta);
+      l_grasp_pose[PREGRASP_POSE].pose.position.z = -l_grasp_pose[PREGRASP_POSE].pose.position.x * sin(theta) + l_grasp_pose[PREGRASP_POSE].pose.position.z * cos(theta);
+      l_grasp_pose[GRASP_POSE].pose.position.z = -l_grasp_pose[GRASP_POSE].pose.position.x * sin(theta) + l_grasp_pose[GRASP_POSE].pose.position.z * cos(theta);
       pitch += theta;
-      GetQuaternionMsg(roll, pitch, yaw, l_grasp_pose[0].pose.orientation);
-      GetQuaternionMsg(roll, pitch, yaw, l_grasp_pose[1].pose.orientation);
+      GetQuaternionMsg(roll, pitch, yaw, l_grasp_pose[PREGRASP_POSE].pose.orientation);
+      GetQuaternionMsg(roll, pitch, yaw, l_grasp_pose[GRASP_POSE].pose.orientation);
 #endif
 
 #if 0
@@ -350,7 +351,8 @@ class VisualServoTest {
       GetQuaternionMsg(roll, pitch, yaw, l_grasp_pose[0].pose.orientation);
 #endif
 
-      copyPose(approaced_pose_.pose, l_grasp_pose[2].pose);
+      //copyPose(approaced_pose_.pose, grasp_pose_[2].pose);
+      copyPose(target_pose_1st_.pose, grasp_pose_[2].pose);
 
       // Global座標を基準とした座標系に変換
       if (!tfBuffer_.canTransform(FIXED_FRAME, TARGET_FRAME, ros::Time(0), ros::Duration(10.0))) {
@@ -360,30 +362,30 @@ class VisualServoTest {
       }
 
       try {
-        tfBuffer_.transform(l_grasp_pose[0], grasp_pose_[0], FIXED_FRAME, ros::Duration(1.0));
+        tfBuffer_.transform(l_grasp_pose[PREGRASP_POSE], grasp_pose_[PREGRASP_POSE], FIXED_FRAME, ros::Duration(1.0));
       } catch (tf2::TransformException &ex) {
         ROS_WARN("%s", ex.what());
         return false;
       }
 
-      printPose("grasp_pose_[0]", grasp_pose_[0].pose);
+      printPose("grasp_pose_[PREGRASP_POSE]", grasp_pose_[PREGRASP_POSE].pose);
 
-      GetRPY(grasp_pose_[0].pose.orientation, roll, pitch, yaw);
-      printEuler("grasp_pose_[0]", roll, pitch, yaw);
+      GetRPY(grasp_pose_[PREGRASP_POSE].pose.orientation, roll, pitch, yaw);
+      printEuler("grasp_pose_[PREGRASP_POSE]", roll, pitch, yaw);
 
       try {
-        tfBuffer_.transform(l_grasp_pose[1], grasp_pose_[1], FIXED_FRAME, ros::Duration(1.0));
+        tfBuffer_.transform(l_grasp_pose[GRASP_POSE], grasp_pose_[GRASP_POSE], FIXED_FRAME, ros::Duration(1.0));
       } catch (tf2::TransformException &ex) {
         ROS_WARN("%s", ex.what());
         return false;
       }
 
-      printPose("grasp_pose_[1]", grasp_pose_[1].pose);
+      printPose("grasp_pose_[GRASP_POSE]", grasp_pose_[GRASP_POSE].pose);
 
-      GetRPY(grasp_pose_[1].pose.orientation, roll, pitch, yaw);
-      printEuler("grasp_pose_[1]", roll, pitch, yaw);
+      GetRPY(grasp_pose_[GRASP_POSE].pose.orientation, roll, pitch, yaw);
+      printEuler("grasp_pose_[GRASP_POSE]", roll, pitch, yaw);
 
-      arm_.setPoseTarget(grasp_pose_[0]);
+      arm_.setPoseTarget(grasp_pose_[PREGRASP_POSE]);
       if (!arm_.move()) {
         ROS_WARN("Could not rotation");
         return false;
@@ -415,18 +417,27 @@ class VisualServoTest {
       ros::Duration(2).sleep();
 
       ROS_INFO("Moving to grasp pose");
-      geometry_msgs::PoseStamped pose;
-      pose.header.frame_id = FIXED_FRAME;
+      geometry_msgs::PoseStamped target_pose;
+      target_pose.header.frame_id = FIXED_FRAME;
 
       {
         std::lock_guard<std::mutex> lock(mtx_);
-        copyPose(target_pose_, pose.pose);
+        copyPose(target_pose_, target_pose.pose);
       }
+      geometry_msgs::Vector3 pos_diff;
+      pos_diff.x = target_pose.pose.position.x - target_pose_1st_.pose.position.x;
+      pos_diff.y = target_pose.pose.position.y - target_pose_1st_.pose.position.y;
+      pos_diff.z = target_pose.pose.position.z - target_pose_1st_.pose.position.z;
+
+      //grasp_pose_[GRASP_POSE].pose.position.x += pos_diff.x;
+      //grasp_pose_[GRASP_POSE].pose.position.y += pos_diff.y;
+      //grasp_pose_[GRASP_POSE].pose.position.z += pos_diff.z;
+
       double roll, pitch, yaw;
-      printPose("Grasp", pose.pose);
+      printPose("Grasp", grasp_pose_[GRASP_POSE].pose);
       printEuler("Grasp", roll, pitch, yaw);
 
-      pub_arm_cartesian_.publish(pose);
+      pub_arm_cartesian_.publish(grasp_pose_[GRASP_POSE]);
 
       ROS_INFO("Moved to picking pose");
 
@@ -458,13 +469,13 @@ class VisualServoTest {
       pos_diff.y = target_pose.pose.position.y - target_pose_1st_.pose.position.y;
       pos_diff.z = target_pose.pose.position.z - target_pose_1st_.pose.position.z;
 
-      grasp_pose_[1].pose.position.x += pos_diff.x;
-      grasp_pose_[1].pose.position.y += pos_diff.y;
-      grasp_pose_[1].pose.position.z += pos_diff.z;
+      grasp_pose_[GRASP_POSE].pose.position.x += pos_diff.x;
+      grasp_pose_[GRASP_POSE].pose.position.y += pos_diff.y;
+      grasp_pose_[GRASP_POSE].pose.position.z += pos_diff.z;
 
-      printPose("Grasp", grasp_pose_[1].pose);
+      printPose("Grasp", grasp_pose_[GRASP_POSE].pose);
 
-      if (!CartesianVelCtrlOnPosCtrl(grasp_pose_[1])) return false;
+      if (!CartesianVelCtrlOnPosCtrl(grasp_pose_[GRASP_POSE])) return false;
 
       ROS_INFO("Moved to picking pose");
 
@@ -1046,6 +1057,9 @@ class VisualServoTest {
     const float CAR_CTL_VEL_P = 2.0;
     const float CAR_CTL_VEL_R = 2.0;
     const std::string CAR_CTL_VEL_TARGET_LINK = "link_tcp";
+    const unsigned int PREGRASP_POSE = 0;
+    const unsigned int GRASP_POSE = 1;
+    const unsigned int POSTGRASP_POSE = 2;
 };
 
 int main(int argc, char** argv)
