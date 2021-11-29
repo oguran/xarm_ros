@@ -1289,7 +1289,7 @@ int main(int argc, char** argv)
   } else {
     pnp.PreGrasp(node_handle);
     //pnp.PreGraspVelocity(node_handle);
-    ros::Duration(5).sleep();
+    //ros::Duration(5).sleep();
     pnp.Grasp(node_handle);
     pnp.PostGrasp(node_handle);
     //pnp.PostGraspVelocity(node_handle);

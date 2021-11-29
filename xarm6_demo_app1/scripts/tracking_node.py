@@ -16,7 +16,7 @@ class testNode():
         self.bridge = CvBridge()
         # Subscriberの作成
         sub_rgb = message_filters.Subscriber('/camera/color/image_raw', Image)
-        sub_depth = message_filters.Subscriber('/camera/depth/image_raw', Image)
+        sub_depth = message_filters.Subscriber('/camera/depth/image_rect_raw', Image)
         sub_rgb_cinfo = message_filters.Subscriber('/camera/color/camera_info', CameraInfo)
         sub_rgb_dinfo = message_filters.Subscriber('/camera/depth/camera_info', CameraInfo)
         self.mf = message_filters.ApproximateTimeSynchronizer([sub_rgb, sub_depth, sub_rgb_cinfo, sub_rgb_dinfo], 100, 0.5)
