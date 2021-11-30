@@ -69,6 +69,9 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
+#include <srecog_msgs/ObjPoseList.h>
+#include <srecog_msgs/ObjPointList.h>
+
 #include <visualization_msgs/Marker.h>
 #include <depth_image_proc/depth_traits.h>
 
@@ -247,11 +250,8 @@ class VisualServoTest {
         pub_marker_target_3rd_ = node_handle.advertise<visualization_msgs::Marker>("marker_target_3rd", 1);
         pub_marker_target_rot_= node_handle.advertise<visualization_msgs::Marker>("marker_target_rot", 1);
         pub_marker_target_grasp_= node_handle.advertise<visualization_msgs::Marker>("marker_target_grasp", 1);
-        static message_filters::Subscriber<geometry_msgs::PoseStamped> sub_target(node_handle, "/xarm/camera/target", 1);
-        static message_filters::Subscriber<sensor_msgs::Image> sub_image(node_handle, "/xarm/camera/depth/image", 1);
-        static message_filters::Subscriber<sensor_msgs::CameraInfo> sub_cinfo(node_handle, "/xarm/camera/depth/camera_info", 1);
-        static message_filters::Synchronizer<DepthSyncPolicy> sync(DepthSyncPolicy(10), sub_target, sub_image, sub_cinfo);
-        sync.registerCallback(&VisualServoTest::DepthTargetCallback, this);
+        sub_cinfo_ = node_handle.subscribe("/camera/depth/camera_info", 10, &VisualServoTest::CameraInfoCallback, this);
+        sub_opl_ = node_handle.subscribe("/srecog/obj_pose_list", 10, &VisualServoTest::DepthTargetCallback, this);
         ROS_INFO("Subscribe prepared!");
       }
 
@@ -930,23 +930,33 @@ class VisualServoTest {
       return true;
     }
 
-    void DepthTargetCallback(const geometry_msgs::PoseStampedConstPtr& msg_target,
-        const sensor_msgs::ImageConstPtr& msg_image,
-        const sensor_msgs::CameraInfoConstPtr& msg_cinfo) {
+    void CameraInfoCallback(const sensor_msgs::CameraInfoConstPtr& msg_cinfo) {
+      cam_model_.fromCameraInfo(msg_cinfo);
+      rcv_cinfo = true;
+    }
+
+    void DepthTargetCallback(const srecog_msgs::ObjPoseList& obj_pose_list) {
+
+      if (!rcv_cinfo) {
+        ROS_WARN("Not receive camera_info yet.");
+        return;
+      }
 
       geometry_msgs::PoseStamped target_pose;
       geometry_msgs::PoseStamped approaching_pose;
       //ros::Time now = ros::Time::now();
 
-      cam_model_.fromCameraInfo(msg_cinfo);
-      uint16_t u16_z = (uint16_t)msg_target->pose.position.z;
+      geometry_msgs::PoseStamped msg_target;
+      msg_target.header = obj_pose_list.header;
+      copyPose(obj_pose_list.obj_poses[0].poses[0], msg_target.pose);
+      uint16_t u16_z = (uint16_t)msg_target.pose.position.z;
 
-      cv::Point2d rs_point(msg_target->pose.position.x, msg_target->pose.position.y);
+      cv::Point2d rs_point(msg_target.pose.position.x, msg_target.pose.position.y);
       cv::Point3d rs_ray = cam_model_.projectPixelTo3dRay(rs_point);
 
       float target_d = depth_image_proc::DepthTraits<uint16_t>::toMeters(u16_z);
 
-      target_pose.header = msg_target->header;
+      target_pose.header = msg_target.header;
       target_pose.pose.position.x = rs_ray.x * target_d;
       target_pose.pose.position.y = rs_ray.y * target_d;
       target_pose.pose.position.z = target_d;
@@ -955,7 +965,7 @@ class VisualServoTest {
 
       {
         visualization_msgs::Marker marker;
-        marker.header.frame_id = msg_image->header.frame_id;
+        marker.header.frame_id = msg_target.header.frame_id;
         marker.header.stamp = ros::Time::now();
         marker.ns = "basic_shapes";
         marker.id = 0;
@@ -1235,6 +1245,8 @@ class VisualServoTest {
     ros::Publisher pub_marker_target_3rd_;
     ros::Publisher pub_marker_target_rot_;
     ros::Publisher pub_marker_target_grasp_;
+    ros::Subscriber sub_cinfo_;
+    ros::Subscriber sub_opl_;
     geometry_msgs::Pose target_pose_;
     geometry_msgs::PoseStamped cognition_pose_;
     geometry_msgs::PoseStamped approaced_pose_;
@@ -1243,6 +1255,8 @@ class VisualServoTest {
     tf2_ros::Buffer tfBuffer_;
     tf2_ros::TransformListener tflistener_;
     image_geometry::PinholeCameraModel cam_model_;
+
+    bool rcv_cinfo = false;
 
 
     geometry_msgs::PoseStamped target_pose_1st_;

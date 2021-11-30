@@ -6,6 +6,7 @@ import message_filters
 from std_msgs.msg import String
 from geometry_msgs.msg import Point
 from geometry_msgs.msg import Quaternion
+from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import CameraInfo
@@ -24,7 +25,8 @@ class testNode():
         self.mf = message_filters.ApproximateTimeSynchronizer([sub_rgb, sub_depth, sub_rgb_cinfo, sub_rgb_dinfo], 100, 0.5)
         self.mf.registerCallback(self.callback)
         # Publisherの作成
-        self.pub_target = rospy.Publisher('/xarm/camera/target', PoseStamped, queue_size=5)
+        #self.pub_target = rospy.Publisher('/xarm/camera/target', PoseStamped, queue_size=5)
+        self.pub_target = rospy.Publisher('/srecog/obj_pose_list', ObjPoseList, queue_size=5)
         self.pub_d_image = rospy.Publisher('/xarm/camera/depth/image', Image, queue_size=5)
         self.pub_d_cinfo = rospy.Publisher('/xarm/camera/depth/camera_info', CameraInfo, queue_size=5)
         self.pub_dbg_1 = rospy.Publisher('/camera/debug', Image, queue_size=5)
@@ -100,12 +102,19 @@ class testNode():
             y = 0
         z_int16 = d_img_array[int(y),int(x)]
 
-        ps = PoseStamped()
-        ps.header = depth_data.header
-        ps.pose.position = Point(x,y, (float)(z_int16))
-        ps.pose.orientation = Quaternion(0.0, 0.0, 0.0, 1.0)
+        pose = Pose()
+        pose.position = Point(x,y, (float)(z_int16))
+        pose.orientation = Quaternion(0.0, 0.0, 0.0, 1.0)
 
-        self.pub_target.publish(ps)
+        op = ObjPose()
+        op.class_name="sports ball"
+        op.poses = np.array([pose])
+
+        opl = ObjPoseList()
+        opl.header = depth_data.header
+        opl.obj_poses = np.array([op])
+
+        self.pub_target.publish(opl)
         self.pub_d_image.publish(depth_data)
         self.pub_d_cinfo.publish(d_camera_info)
         self.pub_dbg_1.publish(send_img_circle)

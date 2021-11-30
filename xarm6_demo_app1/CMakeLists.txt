@@ -29,6 +29,7 @@ find_package(catkin REQUIRED COMPONENTS
     tf2_eigen
     tf2_geometry_msgs
     image_geometry
+    srecog_msgs
 )
 
 ## System dependencies are found with CMake's conventions
