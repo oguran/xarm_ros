@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<launch>
+  <node name="image_republish_1" pkg="image_transport" type="republish" args="raw compressedDepth">
+    <remap from="in" to="/camera/gazebo/depth/image_raw" />
+    <remap from="out" to="/camera/depth/image_rect_raw" />
+  </node>
+  <node name="image_republish_2" pkg="image_transport" type="republish" args="raw raw">
+    <remap from="in" to="/camera/gazebo/depth/image_raw" />
+    <remap from="out" to="/camera/depth/image_rect_raw" />
+  </node>
+  <node name="image_republish_3" pkg="image_transport" type="republish" args="raw compressed">
+    <remap from="in" to="/camera/gazebo/color/image_raw" />
+    <remap from="out" to="/camera/color/image_raw" />
+  </node>
+  <node name="image_republish_4" pkg="image_transport" type="republish" args="raw raw">
+    <remap from="in" to="/camera/gazebo/color/image_raw" />
+    <remap from="out" to="/camera/color/image_raw" />
+  </node>
+
+	<node name="camera_info_relay_1" pkg="topic_tools" type="relay" args="/camera/gazebo/depth/camera_info /camera/depth/camera_info" />
+	<node name="camera_info_relay_2" pkg="topic_tools" type="relay" args="/camera/gazebo/color/camera_info /camera/color/camera_info" />
+</launch>

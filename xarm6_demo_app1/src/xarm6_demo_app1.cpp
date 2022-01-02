@@ -144,14 +144,8 @@ bool SwitchController(ros::NodeHandle &node_handle,
 }
 
 void copyPose(const geometry_msgs::Pose &src, geometry_msgs::Pose &dst) {
-  dst.position.x = src.position.x;
-  dst.position.y = src.position.y;
-  dst.position.z = src.position.z;
-
-  dst.orientation.x = src.orientation.x;
-  dst.orientation.y = src.orientation.y;
-  dst.orientation.z = src.orientation.z;
-  dst.orientation.w = src.orientation.w;
+  dst.position = src.position;
+  dst.orientation = src.orientation;
 }
 
 void printPose(std::string const& msg, const geometry_msgs::Pose &pose) {
@@ -251,7 +245,8 @@ class VisualServoTest {
         pub_marker_target_rot_= node_handle.advertise<visualization_msgs::Marker>("marker_target_rot", 1);
         pub_marker_target_grasp_= node_handle.advertise<visualization_msgs::Marker>("marker_target_grasp", 1);
         sub_cinfo_ = node_handle.subscribe("/camera/depth/camera_info", 10, &VisualServoTest::CameraInfoCallback, this);
-        sub_opl_ = node_handle.subscribe("/srecog/obj_pose_list", 10, &VisualServoTest::DepthTargetCallback, this);
+        sub_obj_pose_list_ = node_handle.subscribe("/srecog/obj_pose_list", 10, &VisualServoTest::ObjPoseListCallback, this);
+        sub_obj_point_list_ = node_handle.subscribe("/srecog/obj_point_list", 10, &VisualServoTest::ObjPointListCallback, this);
         ROS_INFO("Subscribe prepared!");
       }
 
@@ -309,7 +304,7 @@ class VisualServoTest {
       MovingAveragePose MAPose(cnt);
       while (ros::ok() && cnt--) {
         {
-          std::lock_guard<std::mutex> lock(mtx_);
+          std::lock_guard<std::mutex> lock(mtx_point_);
           copyPose(target_pose_, pose);
         }
         MAPose.averagedPose(pose, target_pose_1st_.pose);
@@ -317,7 +312,7 @@ class VisualServoTest {
       }
 #else
       {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::mutex> lock(mtx_point_);
         copyPose(target_pose_, target_pose_1st_.pose);
       }
 #endif
@@ -379,7 +374,7 @@ class VisualServoTest {
       geometry_msgs::PoseStamped l_2nd_pose, g_2nd_pose;
       grasp_pose_[PREGRASP_POSE].header.frame_id = FIXED_FRAME;
       {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::mutex> lock(mtx_point_);
         copyPose(target_pose_, grasp_pose_[PREGRASP_POSE].pose);
       }
       grasp_pose_[PREGRASP_POSE].pose.position.z += 0.10;
@@ -439,36 +434,35 @@ class VisualServoTest {
       l_2nd_pose.header.frame_id = TARGET_FRAME;
       copyPose(l_grasp_pose[GRASP_POSE].pose, l_2nd_pose.pose);
 
-      double theta;
 #if 0
       // Z axis (Yaw) rotation
-      theta = M_PI/2;
-      l_grasp_pose[0].pose.position.x = l_grasp_pose[0].pose.position.x * cos(theta) - l_grasp_pose[0].pose.position.y * sin(theta);
-      l_grasp_pose[0].pose.position.y = l_grasp_pose[0].pose.position.x * sin(theta) + l_grasp_pose[0].pose.position.y * cos(theta);
-      yaw += theta;
+      double theta_y = M_PI/2;
+      l_grasp_pose[0].pose.position.x = l_grasp_pose[0].pose.position.x * cos(theta_y) - l_grasp_pose[0].pose.position.y * sin(theta_y);
+      l_grasp_pose[0].pose.position.y = l_grasp_pose[0].pose.position.x * sin(theta_y) + l_grasp_pose[0].pose.position.y * cos(theta_y);
+      yaw += theta_y;
       GetQuaternionMsg(roll, pitch, yaw, l_grasp_pose[0].pose.orientation);
 #endif
 
 #if 1
       // Y axis (Pitch) rotation
-      theta = M_PI/6;
-      l_grasp_pose[PREGRASP_POSE].pose.position.x = l_grasp_pose[PREGRASP_POSE].pose.position.x * sin(theta) + l_grasp_pose[PREGRASP_POSE].pose.position.z * sin(theta);
-      l_grasp_pose[GRASP_POSE].pose.position.x = l_grasp_pose[GRASP_POSE].pose.position.x * sin(theta) + l_grasp_pose[GRASP_POSE].pose.position.z * sin(theta);
-      l_grasp_pose[PREGRASP_POSE].pose.position.z = -l_grasp_pose[PREGRASP_POSE].pose.position.x * sin(theta) + l_grasp_pose[PREGRASP_POSE].pose.position.z * cos(theta);
-      //l_grasp_pose[GRASP_POSE].pose.position.z = -l_grasp_pose[GRASP_POSE].pose.position.x * sin(theta) + l_grasp_pose[GRASP_POSE].pose.position.z * cos(theta);
+      double theta_p = M_PI/6;
+      l_grasp_pose[PREGRASP_POSE].pose.position.x = l_grasp_pose[PREGRASP_POSE].pose.position.x * sin(theta_p) + l_grasp_pose[PREGRASP_POSE].pose.position.z * sin(theta_p);
+      l_grasp_pose[GRASP_POSE].pose.position.x = l_grasp_pose[GRASP_POSE].pose.position.x * sin(theta_p) + l_grasp_pose[GRASP_POSE].pose.position.z * sin(theta_p);
+      l_grasp_pose[PREGRASP_POSE].pose.position.z = -l_grasp_pose[PREGRASP_POSE].pose.position.x * sin(theta_p) + l_grasp_pose[PREGRASP_POSE].pose.position.z * cos(theta_p);
+      //l_grasp_pose[GRASP_POSE].pose.position.z = -l_grasp_pose[GRASP_POSE].pose.position.x * sin(theta_p) + l_grasp_pose[GRASP_POSE].pose.position.z * cos(theta_p);
       // TODO tentative
-      l_grasp_pose[GRASP_POSE].pose.position.z = -l_grasp_pose[GRASP_POSE].pose.position.x * sin(theta) + l_grasp_pose[GRASP_POSE].pose.position.z * cos(theta) + 0.035;
-      pitch += theta;
+      l_grasp_pose[GRASP_POSE].pose.position.z = -l_grasp_pose[GRASP_POSE].pose.position.x * sin(theta_p) + l_grasp_pose[GRASP_POSE].pose.position.z * cos(theta_p) + 0.035;
+      pitch += theta_p;
       GetQuaternionMsg(roll, pitch, yaw, l_grasp_pose[PREGRASP_POSE].pose.orientation);
       GetQuaternionMsg(roll, pitch, yaw, l_grasp_pose[GRASP_POSE].pose.orientation);
 #endif
 
 #if 0
       // X axis (Roll) rotation
-      theta = M_PI/6;
-      l_grasp_pose[0].pose.position.y = l_grasp_pose[0].pose.position.y * cos(theta) - l_grasp_pose[0].pose.position.z * sin(theta);
-      l_grasp_pose[0].pose.position.z = l_grasp_pose[0].pose.position.y * sin(theta) + l_grasp_pose[0].pose.position.z * cos(theta);
-      roll += theta;
+      double theta_r = M_PI/6;
+      l_grasp_pose[0].pose.position.y = l_grasp_pose[0].pose.position.y * cos(theta_r) - l_grasp_pose[0].pose.position.z * sin(theta_r);
+      l_grasp_pose[0].pose.position.z = l_grasp_pose[0].pose.position.y * sin(theta_r) + l_grasp_pose[0].pose.position.z * cos(theta_r);
+      roll += theta_r;
       GetQuaternionMsg(roll, pitch, yaw, l_grasp_pose[0].pose.orientation);
 #endif
 
@@ -590,7 +584,7 @@ class VisualServoTest {
       target_pose.header.frame_id = FIXED_FRAME;
 
       {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::mutex> lock(mtx_point_);
         copyPose(target_pose_, target_pose.pose);
       }
       geometry_msgs::Vector3 pos_diff;
@@ -629,8 +623,10 @@ class VisualServoTest {
         pub_marker_target_grasp_.publish(marker);
       }
 
+#if 1
       pub_arm_cartesian_.publish(grasp_pose_[GRASP_POSE]);
       ros::Duration(10).sleep();
+#endif
 
       ROS_INFO("Moved to picking pose");
 
@@ -653,7 +649,7 @@ class VisualServoTest {
       target_pose.header.frame_id = FIXED_FRAME;
 
       {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::mutex> lock(mtx_point_);
         copyPose(target_pose_, target_pose.pose);
       }
 
@@ -760,7 +756,7 @@ class VisualServoTest {
       target_pose.header.frame_id = FIXED_FRAME;
 
       {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::mutex> lock(mtx_point_);
         copyPose(target_pose_, target_pose.pose);
       }
       target_pose.pose.position.x += 0.01;
@@ -931,41 +927,50 @@ class VisualServoTest {
     }
 
     void CameraInfoCallback(const sensor_msgs::CameraInfoConstPtr& msg_cinfo) {
+      if (rcv_cinfo) return;
       cam_model_.fromCameraInfo(msg_cinfo);
       rcv_cinfo = true;
     }
 
-    void DepthTargetCallback(const srecog_msgs::ObjPoseList& obj_pose_list) {
+    void ObjPoseListCallback(const srecog_msgs::ObjPoseList& obj_pose_list) {
+       if (obj_pose_list.obj_poses.empty()) {
+        // 把持対象物が認識されていない場合は何もしない
+	      return;
+      }
+
+      {
+        std::lock_guard<std::mutex> lock(mtx_pose_);
+
+        obj_pose_list_.header = obj_pose_list.header;
+        obj_pose_list_.obj_poses = obj_pose_list.obj_poses;
+      }
+
+    }
+
+    void ObjPointListCallback(const srecog_msgs::ObjPointList& obj_point_list) {
 
       if (!rcv_cinfo) {
         ROS_WARN("Not receive camera_info yet.");
         return;
       }
 
+      if (obj_point_list.obj_points.empty()) {
+        // 把持対象物が認識されていない場合は何もしない
+	      return;
+      }
+
       geometry_msgs::PoseStamped target_pose;
       geometry_msgs::PoseStamped approaching_pose;
       //ros::Time now = ros::Time::now();
+      target_pose.header = obj_point_list.header;
+      target_pose.pose.position = obj_point_list.obj_points[0].center;
 
-      geometry_msgs::PoseStamped msg_target;
-      msg_target.header = obj_pose_list.header;
-      copyPose(obj_pose_list.obj_poses[0].poses[0], msg_target.pose);
-      uint16_t u16_z = (uint16_t)msg_target.pose.position.z;
-
-      cv::Point2d rs_point(msg_target.pose.position.x, msg_target.pose.position.y);
-      cv::Point3d rs_ray = cam_model_.projectPixelTo3dRay(rs_point);
-
-      float target_d = depth_image_proc::DepthTraits<uint16_t>::toMeters(u16_z);
-
-      target_pose.header = msg_target.header;
-      target_pose.pose.position.x = rs_ray.x * target_d;
-      target_pose.pose.position.y = rs_ray.y * target_d;
-      target_pose.pose.position.z = target_d;
       // TODO カメラのyawとGripperのyawが90度ずれている
       GetQuaternionMsg(0, 0, -M_PI/2, target_pose.pose.orientation);
 
       {
         visualization_msgs::Marker marker;
-        marker.header.frame_id = msg_target.header.frame_id;
+        marker.header.frame_id = target_pose.header.frame_id;
         marker.header.stamp = ros::Time::now();
         marker.ns = "basic_shapes";
         marker.id = 0;
@@ -983,11 +988,12 @@ class VisualServoTest {
         marker.color.b = 0.0f;
         marker.color.a = 1.0f;
         pub_marker_target_.publish(marker);
+      //std::cout << "marker.pose = " << marker.pose << std::endl;
       }
 
-      if (!tfBuffer_.canTransform(FIXED_FRAME, cam_model_.tfFrame(), ros::Time(0), ros::Duration(1.0))) {
+      if (!tfBuffer_.canTransform(FIXED_FRAME, target_pose.header.frame_id, ros::Time(0), ros::Duration(1.0))) {
         ROS_WARN("Could not lookup transform from world to %s, in duration %f [sec]",
-            cam_model_.tfFrame().c_str(), 1.0f);
+            target_pose.header.frame_id.c_str(), 1.0f);
         return;
       }
 
@@ -1006,7 +1012,7 @@ class VisualServoTest {
       approaching_pose.pose.orientation.w = 0.0f;
 #endif
       {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::mutex> lock(mtx_point_);
 
         target_pose_.position = approaching_pose.pose.position;
         target_pose_.orientation = approaching_pose.pose.orientation;
@@ -1246,12 +1252,16 @@ class VisualServoTest {
     ros::Publisher pub_marker_target_rot_;
     ros::Publisher pub_marker_target_grasp_;
     ros::Subscriber sub_cinfo_;
-    ros::Subscriber sub_opl_;
+    ros::Subscriber sub_obj_pose_list_;
+    ros::Subscriber sub_obj_point_list_;
+    srecog_msgs::ObjPoint obj_point_;
+    srecog_msgs::ObjPoseList obj_pose_list_;
     geometry_msgs::Pose target_pose_;
     geometry_msgs::PoseStamped cognition_pose_;
     geometry_msgs::PoseStamped approaced_pose_;
     geometry_msgs::PoseStamped grasp_pose_[3]; // 0:pre-grasp, 1:grasp, 2:post-grasp
-    std::mutex mtx_;
+    std::mutex mtx_point_;
+    std::mutex mtx_pose_;
     tf2_ros::Buffer tfBuffer_;
     tf2_ros::TransformListener tflistener_;
     image_geometry::PinholeCameraModel cam_model_;

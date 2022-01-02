@@ -11,8 +11,11 @@ from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import CameraInfo
 from cv_bridge import CvBridge
+from image_geometry import PinholeCameraModel
 from srecog_msgs.msg import ObjPose
 from srecog_msgs.msg import ObjPoseList
+from srecog_msgs.msg import ObjPoint
+from srecog_msgs.msg import ObjPointList
 
 class testNode():
     def __init__(self):
@@ -25,7 +28,8 @@ class testNode():
         self.mf = message_filters.ApproximateTimeSynchronizer([sub_rgb, sub_depth, sub_rgb_cinfo, sub_rgb_dinfo], 100, 0.5)
         self.mf.registerCallback(self.callback)
         # Publisherの作成
-        self.pub_target = rospy.Publisher('/srecog/obj_pose_list', ObjPoseList, queue_size=5)
+        self.pub_pose_list = rospy.Publisher('/srecog/obj_pose_list', ObjPoseList, queue_size=5)
+        self.pub_point_list = rospy.Publisher('/srecog/obj_point_list', ObjPointList, queue_size=5)
         self.pub_d_image = rospy.Publisher('/xarm/camera/depth/image', Image, queue_size=5)
         self.pub_d_cinfo = rospy.Publisher('/xarm/camera/depth/camera_info', CameraInfo, queue_size=5)
         self.pub_dbg_1 = rospy.Publisher('/camera/debug', Image, queue_size=5)
@@ -37,6 +41,9 @@ class testNode():
         #print('c_info width = {}, height = {}'.format(c_camera_info.width, c_camera_info.height))
         #print('d_info width = {}, height = {}'.format(d_camera_info.width, d_camera_info.height))
 
+        if d_camera_info is not None:
+          self.d_model = PinholeCameraModel()
+          self.d_model.fromCameraInfo(d_camera_info)
 
         try:
             color_image = self.bridge.imgmsg_to_cv2(rgb_data, rgb_data.encoding)
@@ -100,20 +107,40 @@ class testNode():
         if y > depth_data.height:
             y = 0
         z_int16 = d_img_array[int(y),int(x)]
+        z = (float)(z_int16) * 0.001 # convert to meter
 
+        # convert 2d in image to 3d
+        rs_ray = self.d_model.projectPixelTo3dRay((x, y))
+        x = rs_ray[0] * z
+        y = rs_ray[1] * z
+
+        # create ObjPoseList
         pose = Pose()
-        pose.position = Point(x,y, (float)(z_int16))
+        pose.position = Point(x,y,z)
         pose.orientation = Quaternion(0.0, 0.0, 0.0, 1.0)
 
-        op = ObjPose()
-        op.class_name="sports ball"
-        op.poses = np.array([pose])
+        obj_pose = ObjPose()
+        obj_pose.class_name="sports ball"
+        obj_pose.poses = np.array([pose])
 
-        opl = ObjPoseList()
-        opl.header = depth_data.header
-        opl.obj_poses = np.array([op])
+        obj_pose_list = ObjPoseList()
+        obj_pose_list.header = depth_data.header
+        obj_pose_list.obj_poses = np.array([obj_pose])
 
-        self.pub_target.publish(opl)
+        # create ObjPointList
+        obj_point = ObjPoint()
+        obj_point.class_name="sports ball"
+        obj_point.center = Point(x,y,z)
+        obj_point.left = Point(0.0, 0.0, 0.0)
+        obj_point.right = Point(0.0, 0.0, 0.0)
+
+        obj_point_list = ObjPointList()
+        obj_point_list.header = depth_data.header
+        obj_point_list.obj_points = np.array([obj_point])
+
+        # publish
+        self.pub_pose_list.publish(obj_pose_list)
+        self.pub_point_list.publish(obj_point_list)
         self.pub_d_image.publish(depth_data)
         self.pub_d_cinfo.publish(d_camera_info)
         self.pub_dbg_1.publish(send_img_circle)
