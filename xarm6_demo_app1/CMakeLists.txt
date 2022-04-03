@@ -122,7 +122,7 @@ find_package(Boost REQUIRED system filesystem date_time thread)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
   LIBRARIES
     interactivity_utils
   CATKIN_DEPENDS
@@ -142,7 +142,7 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(SYSTEM ${Boost_INCLUDE_DIR} ${EIGEN3_INCLUDE_DIRS})
 include_directories(
-# include
+  include
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -159,7 +159,13 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node src/xarm6_demo_app1.cpp)
+add_executable(${PROJECT_NAME}_node
+  src/xarm6_demo_app1.cpp
+  src/CApproach.cpp
+  src/CGrasp.cpp
+  src/CMovingAveragePose.cpp
+  src/CObjListManager.cpp
+  )
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
