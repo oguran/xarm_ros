@@ -1,9 +1,6 @@
-/* Copyright 2020 UFACTORY Inc. All Rights Reserved.
- *
- * Software License Agreement (BSD License)
- *
- * Author: Jason Peng <jason@ufactory.cc>
- ============================================================================*/
+#if !defined(XARM6_DEMO_APP1_COBJLISTMANAGER_H)
+#define XARM6_DEMO_APP1_COBJLISTMANAGER_H
+
 #include <ros/ros.h>
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
@@ -54,16 +51,23 @@ class CObjListManager {
     void ObjPoseListCallback(const srecog_msgs::ObjPoseList& obj_pose_list);
     void ObjPointListCallback(const srecog_msgs::ObjPointList& obj_point_list);
 
-  private:
     srecog_msgs::ObjPoseList obj_pose_list_;
     geometry_msgs::Pose target_pose_;
     std::mutex mtx_point_;
     std::mutex mtx_pose_;
     tf2_ros::Buffer tfBuffer_;
+    tf2_ros::TransformListener tflistener_;
     image_geometry::PinholeCameraModel cam_model_;
     ros::Publisher pub_marker_target_;
+    ros::Subscriber sub_cinfo_;
+    ros::Subscriber sub_obj_pose_list_;
+    ros::Subscriber sub_obj_point_list_;
+
+  private:
     bool rcv_cinfo = false;
 
     const std::string FIXED_FRAME = "world";
     const std::string TARGET_FRAME = "target";
 };
+
+#endif // XARM6_DEMO_APP1_COBJLISTMANAGER_H

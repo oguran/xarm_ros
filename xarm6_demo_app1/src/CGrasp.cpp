@@ -1,8 +1,11 @@
 #include <xarm6_demo_app1/CGrasp.h>
 #include <xarm6_demo_app1/Utility.h>
 
-CGrasp::CGrasp(ros::NodeHandle& node_handle)
-    : gripper_("/xarm/gripper_controller/gripper_cmd", "true") {
+CGrasp::CGrasp(ros::NodeHandle& node_handle, CObjListManager& olm, CApproach& aprch)
+    : gripper_("/xarm/gripper_controller/gripper_cmd", "true"),
+    node_handle(node_handle),
+    olm(olm),
+    aprch(aprch) {
         // 座標系をロボットのベースに基づいた「FIXED_FRAME」座標系を使う。
         gripper_.waitForServer();
 
@@ -12,7 +15,7 @@ CGrasp::CGrasp(ros::NodeHandle& node_handle)
         ROS_INFO("Subscribe prepared!");
     }
 
-bool CGrasp::PreGrasp(ros::NodeHandle& node_handle) {
+bool CGrasp::PreGrasp() {
     std::vector<std::string> start_controller;
     start_controller.push_back("xarm6_cartesian_motion_controller");
     std::vector<std::string> stop_controller;
@@ -28,26 +31,26 @@ bool CGrasp::PreGrasp(ros::NodeHandle& node_handle) {
     target_pose.header.frame_id = FIXED_FRAME;
 
     {
-        std::lock_guard<std::mutex> lock(mtx_point_);
-        copyPose(target_pose_, target_pose.pose);
+        std::lock_guard<std::mutex> lock(olm.mtx_point_);
+        copyPose(olm.target_pose_, target_pose.pose);
     }
     geometry_msgs::Vector3 pos_diff;
-    pos_diff.x = target_pose.pose.position.x - target_pose_1st_.pose.position.x;
-    pos_diff.y = target_pose.pose.position.y - target_pose_1st_.pose.position.y;
-    pos_diff.z = target_pose.pose.position.z - target_pose_1st_.pose.position.z;
+    pos_diff.x = target_pose.pose.position.x - aprch.target_pose_1st_.pose.position.x;
+    pos_diff.y = target_pose.pose.position.y - aprch.target_pose_1st_.pose.position.y;
+    pos_diff.z = target_pose.pose.position.z - aprch.target_pose_1st_.pose.position.z;
 
-    grasp_pose_[GRASP_POSE].pose.position.x += pos_diff.x;
-    grasp_pose_[GRASP_POSE].pose.position.y += pos_diff.y;
-    grasp_pose_[GRASP_POSE].pose.position.z += pos_diff.z;
+    aprch.grasp_pose_[aprch.GRASP_POSE].pose.position.x += pos_diff.x;
+    aprch.grasp_pose_[aprch.GRASP_POSE].pose.position.y += pos_diff.y;
+    aprch.grasp_pose_[aprch.GRASP_POSE].pose.position.z += pos_diff.z;
 
     double roll, pitch, yaw;
-    printPose("Grasp", grasp_pose_[GRASP_POSE].pose);
-    GetRPY(grasp_pose_[GRASP_POSE].pose.orientation, roll, pitch, yaw);
+    printPose("Grasp", aprch.grasp_pose_[aprch.GRASP_POSE].pose);
+    GetRPY(aprch.grasp_pose_[aprch.GRASP_POSE].pose.orientation, roll, pitch, yaw);
     printEuler("Grasp", roll, pitch, yaw);
 
     {
         visualization_msgs::Marker marker;
-        marker.header.frame_id = grasp_pose_[GRASP_POSE].header.frame_id;
+        marker.header.frame_id = aprch.grasp_pose_[aprch.GRASP_POSE].header.frame_id;
         marker.header.stamp = ros::Time::now();
         marker.ns = "basic_shapes";
         marker.id = 0;
@@ -59,7 +62,7 @@ bool CGrasp::PreGrasp(ros::NodeHandle& node_handle) {
         marker.scale.x = 0.01;
         marker.scale.y = 0.01;
         marker.scale.z = 0.01;
-        copyPose(grasp_pose_[GRASP_POSE].pose, marker.pose);
+        copyPose(aprch.grasp_pose_[aprch.GRASP_POSE].pose, marker.pose);
         marker.color.r = 0.0f;
         marker.color.g = 1.0f;
         marker.color.b = 1.0f;
@@ -67,17 +70,15 @@ bool CGrasp::PreGrasp(ros::NodeHandle& node_handle) {
         pub_marker_target_grasp_.publish(marker);
     }
 
-#if 1
-    pub_arm_cartesian_.publish(grasp_pose_[GRASP_POSE]);
+    pub_arm_cartesian_.publish(aprch.grasp_pose_[aprch.GRASP_POSE]);
     ros::Duration(10).sleep();
-#endif
 
     ROS_INFO("Moved to picking pose");
 
     return true;
 }
 
-bool CGrasp::PreGraspVelocity(ros::NodeHandle& node_handle) {
+bool CGrasp::PreGraspVelocity() {
     std::vector<std::string> start_controller;
     start_controller.push_back("xarm6_cartesian_motion_controller");
     std::vector<std::string> stop_controller;
@@ -93,29 +94,29 @@ bool CGrasp::PreGraspVelocity(ros::NodeHandle& node_handle) {
     target_pose.header.frame_id = FIXED_FRAME;
 
     {
-        std::lock_guard<std::mutex> lock(mtx_point_);
-        copyPose(target_pose_, target_pose.pose);
+        std::lock_guard<std::mutex> lock(olm.mtx_point_);
+        copyPose(olm.target_pose_, target_pose.pose);
     }
 
     geometry_msgs::Vector3 pos_diff;
-    pos_diff.x = target_pose.pose.position.x - target_pose_1st_.pose.position.x;
-    pos_diff.y = target_pose.pose.position.y - target_pose_1st_.pose.position.y;
-    pos_diff.z = target_pose.pose.position.z - target_pose_1st_.pose.position.z;
+    pos_diff.x = target_pose.pose.position.x - aprch.target_pose_1st_.pose.position.x;
+    pos_diff.y = target_pose.pose.position.y - aprch.target_pose_1st_.pose.position.y;
+    pos_diff.z = target_pose.pose.position.z - aprch.target_pose_1st_.pose.position.z;
 
-    grasp_pose_[GRASP_POSE].pose.position.x += pos_diff.x;
-    grasp_pose_[GRASP_POSE].pose.position.y += pos_diff.y;
-    grasp_pose_[GRASP_POSE].pose.position.z += pos_diff.z;
+    aprch.grasp_pose_[aprch.GRASP_POSE].pose.position.x += pos_diff.x;
+    aprch.grasp_pose_[aprch.GRASP_POSE].pose.position.y += pos_diff.y;
+    aprch.grasp_pose_[aprch.GRASP_POSE].pose.position.z += pos_diff.z;
 
-    printPose("Grasp", grasp_pose_[GRASP_POSE].pose);
+    printPose("Grasp", aprch.grasp_pose_[aprch.GRASP_POSE].pose);
 
-    if (!CartesianVelCtrlOnPosCtrl(grasp_pose_[GRASP_POSE])) return false;
+    if (!CartesianVelCtrlOnPosCtrl(aprch.grasp_pose_[aprch.GRASP_POSE])) return false;
 
     ROS_INFO("Moved to picking pose");
 
     return true;
 }
 
-bool CGrasp::Grasp(ros::NodeHandle& node_handle) {
+bool CGrasp::Grasp() {
 
     ROS_INFO("Start Grasp");
     control_msgs::GripperCommandGoal goal;
@@ -132,15 +133,15 @@ bool CGrasp::Grasp(ros::NodeHandle& node_handle) {
     return true;
 }
 
-bool CGrasp::PostGrasp(ros::NodeHandle& node_handle) {
+bool CGrasp::PostGrasp() {
     ROS_INFO("Moving to PostGrasped pose");
 
-    printPose("PostGrasped", approaced_pose_.pose);
+    printPose("PostGrasped", aprch.approaced_pose_.pose);
     double roll, pitch, yaw;
-    GetRPY(approaced_pose_.pose.orientation, roll, pitch, yaw);
+    GetRPY(aprch.approaced_pose_.pose.orientation, roll, pitch, yaw);
     printEuler("Postgrasped", roll, pitch, yaw);
 
-    pub_arm_cartesian_.publish(approaced_pose_);
+    pub_arm_cartesian_.publish(aprch.approaced_pose_);
 
     ROS_INFO("Moved to PostGrasped pose");
 
@@ -158,15 +159,15 @@ bool CGrasp::PostGrasp(ros::NodeHandle& node_handle) {
     return true;
 }
 
-bool CGrasp::PostGraspVelocity(ros::NodeHandle& node_handle) {
+bool CGrasp::PostGraspVelocity() {
     ROS_INFO("Moving to PostGrasped pose");
 
-    printPose("PostGrasped", grasp_pose_[2].pose);
+    printPose("PostGrasped", aprch.grasp_pose_[aprch.POSTGRASP_POSE].pose);
     double roll, pitch, yaw;
-    GetRPY(grasp_pose_[2].pose.orientation, roll, pitch, yaw);
+    GetRPY(aprch.grasp_pose_[aprch.POSTGRASP_POSE].pose.orientation, roll, pitch, yaw);
     printEuler("postgrasped", roll, pitch, yaw);
 
-    if (!CartesianVelCtrlOnPosCtrl(grasp_pose_[2])) return false;
+    if (!CartesianVelCtrlOnPosCtrl(aprch.grasp_pose_[aprch.POSTGRASP_POSE])) return false;
 
     ROS_INFO("Moved to PostGrasped pose");
 
@@ -184,7 +185,7 @@ bool CGrasp::PostGraspVelocity(ros::NodeHandle& node_handle) {
     return true;
 }
 
-bool CGrasp::PickVelocity(ros::NodeHandle& node_handle) {
+bool CGrasp::PickVelocity() {
     std::vector<std::string> start_controller;
     start_controller.push_back("xarm6_cartesian_motion_controller_velocity");
     std::vector<std::string> stop_controller;
@@ -200,8 +201,8 @@ bool CGrasp::PickVelocity(ros::NodeHandle& node_handle) {
     target_pose.header.frame_id = FIXED_FRAME;
 
     {
-        std::lock_guard<std::mutex> lock(mtx_point_);
-        copyPose(target_pose_, target_pose.pose);
+        std::lock_guard<std::mutex> lock(olm.mtx_point_);
+        copyPose(olm.target_pose_, target_pose.pose);
     }
     target_pose.pose.position.x += 0.01;
     target_pose.pose.position.z -= 0.06;
@@ -227,7 +228,7 @@ bool CGrasp::PickVelocity(ros::NodeHandle& node_handle) {
     ros::Rate rate(50);
     while (ros::ok()) {
         try { // link_tcpの現座標を取得
-            approached_ts = tfBuffer_.lookupTransform(FIXED_FRAME, "link_tcp", ros::Time(0), ros::Duration(1.0));
+            approached_ts = olm.tfBuffer_.lookupTransform(FIXED_FRAME, "link_tcp", ros::Time(0), ros::Duration(1.0));
         } catch (tf2::TransformException &ex) {
             ROS_WARN("%s", ex.what());
             return false;
@@ -254,7 +255,7 @@ bool CGrasp::PickVelocity(ros::NodeHandle& node_handle) {
                 if (count > 50) {
                     ROS_INFO("Grasped: abs = %f, target_z = %f, current_z = %f",
                             abs, p_target->pose.position.z, current_pose.pose.position.z);
-                    p_target = &approaced_pose_;
+                    p_target = &aprch.approaced_pose_;
                     status = GRASPED;
                     count = 0;
                 }
@@ -382,7 +383,7 @@ bool CGrasp::CartesianVelCtrlOnPosCtrl(geometry_msgs::PoseStamped target_pose) {
     geometry_msgs::PoseStamped current_pose;;
     geometry_msgs::TransformStamped approached_ts;
     try { // target_linkの現座標を取得
-        approached_ts = tfBuffer_.lookupTransform(FIXED_FRAME, CAR_CTL_VEL_TARGET_LINK,
+        approached_ts = olm.tfBuffer_.lookupTransform(FIXED_FRAME, CAR_CTL_VEL_TARGET_LINK,
                 ros::Time(0), ros::Duration(1.0));
     } catch (tf2::TransformException &ex) {
         ROS_WARN("%s", ex.what());
@@ -422,7 +423,7 @@ bool CGrasp::CartesianVelCtrlOnPosCtrl(geometry_msgs::PoseStamped target_pose) {
         ros::Duration duration = now - prev;
 
         try { // target_linkの現座標を取得
-            approached_ts = tfBuffer_.lookupTransform(FIXED_FRAME, CAR_CTL_VEL_TARGET_LINK,
+            approached_ts = olm.tfBuffer_.lookupTransform(FIXED_FRAME, CAR_CTL_VEL_TARGET_LINK,
                     ros::Time(0), ros::Duration(1.0));
         } catch (tf2::TransformException &ex) {
             ROS_WARN("%s", ex.what());

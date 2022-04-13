@@ -1,3 +1,6 @@
+#if !defined(XARM6_DEMO_APP1_UTILITY_H)
+#define XARM6_DEMO_APP1_UTILITY_H
+
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 
@@ -139,4 +142,4 @@ void ShowControllerStatistics(ros::NodeHandle& node_handle,) {
 #endif
 
 
-
+#endif // XARM6_DEMO_APP1_UTILITY_H

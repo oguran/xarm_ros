@@ -8,13 +8,15 @@ Panels:
         - /MotionPlanning1/Planning Request1
         - /MotionPlanning1/Planning Metrics1
         - /MotionPlanning1/Planned Path1
+        - /TF1/Frames1
         - /Marker1
         - /Marker2
         - /Marker3
         - /Marker4
         - /Marker5
-      Splitter Ratio: 0.467741936
-    Tree Height: 721
+        - /Marker6
+      Splitter Ratio: 0.805882335
+    Tree Height: 535
   - Class: rviz/Help
     Name: Help
   - Class: rviz/Views
@@ -305,7 +307,7 @@ Visualization Manager:
     - Class: rviz/Camera
       Enabled: false
       Image Rendering: background and overlay
-      Image Topic: /camera/color/image_raw
+      Image Topic: /posecnn_pose_00
       Name: Camera
       Overlay Alpha: 0.5
       Queue Size: 2
@@ -313,12 +315,14 @@ Visualization Manager:
       Unreliable: false
       Value: false
       Visibility:
+        "": true
         Camera: true
         Grid: true
         Marker: true
         MotionPlanning: true
         PointCloud2: true
         RobotModel: true
+        TF: true
         Value: true
       Zoom Factor: 1
     - Class: rviz/Camera
@@ -332,41 +336,41 @@ Visualization Manager:
       Unreliable: false
       Value: false
       Visibility:
+        "": true
         Camera: true
         Grid: true
         Marker: true
         MotionPlanning: true
         PointCloud2: true
         RobotModel: true
+        TF: true
         Value: true
       Zoom Factor: 1
+    - Class: rviz/TF
+      Enabled: false
+      Frame Timeout: 15
+      Frames:
+        All Enabled: false
+      Marker Scale: 1
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+      Tree:
+        {}
+      Update Interval: 0
+      Value: false
     - Class: rviz/Marker
       Enabled: true
       Marker Topic: /marker_target
       Name: Marker
       Namespaces:
-        {}
+        basic_shapes: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
       Enabled: true
       Marker Topic: /marker_target_1st
-      Name: Marker
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: true
-    - Class: rviz/Marker
-      Enabled: true
-      Marker Topic: /marker_target_grasp
-      Name: Marker
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: true
-    - Class: rviz/Marker
-      Enabled: true
-      Marker Topic: /marker_target_rot
       Name: Marker
       Namespaces:
         {}
@@ -388,6 +392,22 @@ Visualization Manager:
         {}
       Queue Size: 100
       Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /marker_target_grasp
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /marker_target_rot
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -404,32 +424,32 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 1.01282561
+      Distance: 0.641927958
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.241937101
-        Y: 0.0224655867
+        X: -0.312698871
+        Y: 0.300473928
         Z: 2.83122631e-07
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.0500000007
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.0347959101
+      Pitch: -0.19520399
       Target Frame: world
       Value: XYOrbit (rviz)
-      Yaw: 1.62994766
+      Yaw: 1.6649549
     Saved: ~
 Window Geometry:
   Camera:
     collapsed: false
   Displays:
     collapsed: false
-  Height: 951
+  Height: 761
   Help:
     collapsed: false
   Hide Left Dock: false
@@ -438,9 +458,9 @@ Window Geometry:
     collapsed: false
   MotionPlanning - Trajectory Slider:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd00000001000000000000015600000360fc0200000009fb000000100044006900730070006c006100790073010000003c00000360000000c900fffffffb0000000800480065006c00700000000342000000bb0000006f00fffffffb0000000a0056006900650077007300000003b0000000b0000000a100fffffffb0000000c00430061006d00650072006100000002ff000001610000001600fffffffb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000003f00fffffffb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e00670000000163000001800000017500fffffffb0000000c00430061006d0065007200610000000294000000a60000001600fffffffb0000000c00430061006d0065007200610100000494000000c300000000000000000000028e0000036000000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd000000010000000000000156000002a5fc0200000009fb000000100044006900730070006c006100790073010000003a000002a5000000c600fffffffb0000000800480065006c00700000000342000000bb0000006e00fffffffb0000000a0056006900650077007300000003b0000000b00000009e00fffffffb0000000c00430061006d00650072006100000002ff000001610000001600fffffffb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000003e00fffffffb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e00670000000163000001800000016b00fffffffb0000000c00430061006d006500720061000000032a000000a60000001600fffffffb0000000c00430061006d0065007200610100000494000000c3000000000000000000000438000002a500000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Views:
     collapsed: false
-  Width: 1002
-  X: 823
-  Y: 7
+  Width: 1428
+  X: 1487
+  Y: 1358

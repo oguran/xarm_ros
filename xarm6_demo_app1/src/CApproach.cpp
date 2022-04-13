@@ -1,9 +1,11 @@
 #include <xarm6_demo_app1/CApproach.h>
 #include <xarm6_demo_app1/Utility.h>
 
-CApproach::CApproach(ros::NodeHandle& node_handle)
+CApproach::CApproach(ros::NodeHandle& node_handle, CObjListManager& olm)
     : arm_("xarm6"),
-    gripper_("/xarm/gripper_controller/gripper_cmd", "true") {
+    gripper_("/xarm/gripper_controller/gripper_cmd", "true"),
+    node_handle(node_handle),
+    olm(olm) {
         // 座標系をロボットのベースに基づいた「FIXED_FRAME」座標系を使う。
         arm_.setPoseReferenceFrame(FIXED_FRAME);
         gripper_.waitForServer();
@@ -15,7 +17,7 @@ CApproach::CApproach(ros::NodeHandle& node_handle)
         ROS_INFO("Subscribe prepared!");
     }
 
-bool CApproach::MoveToCognitionPose(ros::NodeHandle& node_handle) {
+bool CApproach::MoveToCognitionPose() {
     ROS_INFO("Moving to cognition pose");
     cognition_pose_.header.frame_id = FIXED_FRAME;
     cognition_pose_.pose.position.x = -0.354;
@@ -49,7 +51,7 @@ bool CApproach::MoveToCognitionPose(ros::NodeHandle& node_handle) {
     return true;
 }
 
-bool CApproach::DoApproach(ros::NodeHandle& node_handle) {
+bool CApproach::DoApproach() {
     ROS_INFO("Opening gripper");
     control_msgs::GripperCommandGoal goal;
     goal.command.position = 0.0;
@@ -69,16 +71,16 @@ bool CApproach::DoApproach(ros::NodeHandle& node_handle) {
     MovingAveragePose MAPose(cnt);
     while (ros::ok() && cnt--) {
         {
-            std::lock_guard<std::mutex> lock(mtx_point_);
-            copyPose(target_pose_, pose);
+            std::lock_guard<std::mutex> lock(olm.mtx_point_);
+            copyPose(olm.target_pose_, pose);
         }
         MAPose.averagedPose(pose, target_pose_1st_.pose);
         rate.sleep();
     }
 #else
     {
-        std::lock_guard<std::mutex> lock(mtx_point_);
-        copyPose(target_pose_, target_pose_1st_.pose);
+        std::lock_guard<std::mutex> lock(olm.mtx_point_);
+        copyPose(olm.target_pose_, target_pose_1st_.pose);
     }
 #endif
     geometry_msgs::PoseStamped approached_pose;
@@ -123,7 +125,7 @@ bool CApproach::DoApproach(ros::NodeHandle& node_handle) {
 
     geometry_msgs::TransformStamped approached_ts;
     try { // link_tcpの現座標を取得
-        approached_ts = tfBuffer_.lookupTransform(FIXED_FRAME, "link_tcp", ros::Time(0), ros::Duration(1.0));
+        approached_ts = olm.tfBuffer_.lookupTransform(FIXED_FRAME, "link_tcp", ros::Time(0), ros::Duration(1.0));
     } catch (tf2::TransformException &ex) {
         ROS_WARN("%s", ex.what());
         return false;
@@ -133,14 +135,14 @@ bool CApproach::DoApproach(ros::NodeHandle& node_handle) {
     return true;
 }
 
-bool CApproach::DoApproachRotation(ros::NodeHandle& node_handle) {
+bool CApproach::DoApproachRotation() {
     ROS_INFO("Rotation");
     geometry_msgs::PoseStamped l_grasp_pose[2];
     geometry_msgs::PoseStamped l_2nd_pose, g_2nd_pose;
     grasp_pose_[PREGRASP_POSE].header.frame_id = FIXED_FRAME;
     {
-        std::lock_guard<std::mutex> lock(mtx_point_);
-        copyPose(target_pose_, grasp_pose_[PREGRASP_POSE].pose);
+        std::lock_guard<std::mutex> lock(olm.mtx_point_);
+        copyPose(olm.target_pose_, grasp_pose_[PREGRASP_POSE].pose);
     }
     grasp_pose_[PREGRASP_POSE].pose.position.z += 0.10;
 
@@ -173,14 +175,14 @@ bool CApproach::DoApproachRotation(ros::NodeHandle& node_handle) {
     }
 
     // 把持対象物を基準とした座標系に変換
-    if (!tfBuffer_.canTransform(TARGET_FRAME, FIXED_FRAME, ros::Time(0), ros::Duration(10.0))) {
+    if (!olm.tfBuffer_.canTransform(TARGET_FRAME, FIXED_FRAME, ros::Time(0), ros::Duration(10.0))) {
         ROS_WARN("Could not lookup transform from world to %s, in duration %f [sec]",
                 TARGET_FRAME.c_str(), 10.0f);
         return false;
     }
 
     try {
-        tfBuffer_.transform(grasp_pose_[PREGRASP_POSE], l_grasp_pose[PREGRASP_POSE], TARGET_FRAME, ros::Duration(1.0));
+        olm.tfBuffer_.transform(grasp_pose_[PREGRASP_POSE], l_grasp_pose[PREGRASP_POSE], TARGET_FRAME, ros::Duration(1.0));
     } catch (tf2::TransformException &ex) {
         ROS_WARN("%s", ex.what());
         return false;
@@ -236,14 +238,14 @@ bool CApproach::DoApproachRotation(ros::NodeHandle& node_handle) {
     copyPose(target_pose_1st_.pose, grasp_pose_[POSTGRASP_POSE].pose);
 
     // Global座標を基準とした座標系に変換
-    if (!tfBuffer_.canTransform(FIXED_FRAME, TARGET_FRAME, ros::Time(0), ros::Duration(10.0))) {
+    if (!olm.tfBuffer_.canTransform(FIXED_FRAME, TARGET_FRAME, ros::Time(0), ros::Duration(10.0))) {
         ROS_WARN("Could not lookup transform from world to %s, in duration %f [sec]",
                 TARGET_FRAME.c_str(), 1.0f);
         return false;
     }
 
     try {
-        tfBuffer_.transform(l_grasp_pose[PREGRASP_POSE], grasp_pose_[PREGRASP_POSE], FIXED_FRAME, ros::Duration(1.0));
+        olm.tfBuffer_.transform(l_grasp_pose[PREGRASP_POSE], grasp_pose_[PREGRASP_POSE], FIXED_FRAME, ros::Duration(1.0));
     } catch (tf2::TransformException &ex) {
         ROS_WARN("%s", ex.what());
         return false;
@@ -255,8 +257,8 @@ bool CApproach::DoApproachRotation(ros::NodeHandle& node_handle) {
     printEuler("grasp_pose_[PREGRASP_POSE]", roll, pitch, yaw);
 
     try {
-        tfBuffer_.transform(l_grasp_pose[GRASP_POSE], grasp_pose_[GRASP_POSE], FIXED_FRAME, ros::Duration(1.0));
-        tfBuffer_.transform(l_2nd_pose, g_2nd_pose, FIXED_FRAME, ros::Duration(1.0));
+        olm.tfBuffer_.transform(l_grasp_pose[GRASP_POSE], grasp_pose_[GRASP_POSE], FIXED_FRAME, ros::Duration(1.0));
+        olm.tfBuffer_.transform(l_2nd_pose, g_2nd_pose, FIXED_FRAME, ros::Duration(1.0));
     } catch (tf2::TransformException &ex) {
         ROS_WARN("%s", ex.what());
         return false;
@@ -322,7 +324,7 @@ bool CApproach::DoApproachRotation(ros::NodeHandle& node_handle) {
 
     geometry_msgs::TransformStamped approached_ts;
     try { // link_tcpの現座標を取得
-        approached_ts = tfBuffer_.lookupTransform(FIXED_FRAME, "link_tcp", ros::Time(0), ros::Duration(1.0));
+        approached_ts = olm.tfBuffer_.lookupTransform(FIXED_FRAME, "link_tcp", ros::Time(0), ros::Duration(1.0));
     } catch (tf2::TransformException &ex) {
         ROS_WARN("%s", ex.what());
         return false;

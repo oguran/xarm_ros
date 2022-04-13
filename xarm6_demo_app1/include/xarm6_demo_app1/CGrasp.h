@@ -1,3 +1,6 @@
+#if !defined(XARM6_DEMO_APP1_CGRASP_H)
+#define XARM6_DEMO_APP1_CGRASP_H
+
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 
@@ -39,15 +42,18 @@
 #include <visualization_msgs/Marker.h>
 #include <depth_image_proc/depth_traits.h>
 
+#include <xarm6_demo_app1/CObjListManager.h>
+#include <xarm6_demo_app1/CApproach.h>
+
 class CGrasp {
   public:
-    explicit CGrasp(ros::NodeHandle& node_handle);
-    bool PreGrasp(ros::NodeHandle& node_handle);
-    bool PreGraspVelocity(ros::NodeHandle& node_handle);
-    bool Grasp(ros::NodeHandle& node_handle);
-    bool PostGrasp(ros::NodeHandle& node_handle);
-    bool PostGraspVelocity(ros::NodeHandle& node_handle);
-    bool PickVelocity(ros::NodeHandle& node_handle);
+    explicit CGrasp(ros::NodeHandle& node_handle, CObjListManager& olm, CApproach& aprch);
+    bool PreGrasp();
+    bool PreGraspVelocity();
+    bool Grasp();
+    bool PostGrasp();
+    bool PostGraspVelocity();
+    bool PickVelocity();
 
   private:
     bool CartesianVelCtrlOnPosCtrl(geometry_msgs::PoseStamped target_pose);
@@ -57,11 +63,6 @@ class CGrasp {
     ros::Publisher pub_arm_cartesian_;
     ros::Publisher pub_arm_cartesian_vel_;
     ros::Publisher pub_marker_target_grasp_;
-    geometry_msgs::Pose target_pose_;
-    geometry_msgs::PoseStamped approaced_pose_;
-    geometry_msgs::PoseStamped grasp_pose_[3]; // 0:pre-grasp, 1:grasp, 2:post-grasp
-    std::mutex mtx_point_;
-    tf2_ros::Buffer tfBuffer_;
 
     geometry_msgs::PoseStamped target_pose_1st_;
 
@@ -70,6 +71,10 @@ class CGrasp {
     const float CAR_CTL_VEL_P = 2.0;
     const float CAR_CTL_VEL_R = 2.0;
     const std::string CAR_CTL_VEL_TARGET_LINK = "link_tcp";
-    const unsigned int GRASP_POSE = 1;
+
+    ros::NodeHandle& node_handle;
+    CObjListManager& olm;
+    CApproach& aprch;
 };
 
+#endif // XARM6_DEMO_APP1_CGRASP_H
