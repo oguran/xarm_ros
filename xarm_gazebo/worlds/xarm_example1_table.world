@@ -46,7 +46,7 @@
     -->
 
     <model name="056_tennis_ball">
-      <pose>0.1 -0.84 1.015  0 0 0</pose>
+      <pose>0.1 -0.94 1.015  0 0 0</pose>
       <static>true</static>
       <link name="body">
         <visual name="visual">
@@ -56,7 +56,42 @@
         </visual>
       </link>
     </model>
-    -->
+
+    <model name="004_sugar_box">
+      <pose>-0.1 -1.00 1.015  0 0 0</pose>
+      <static>true</static>
+      <link name="body">
+        <visual name="visual">
+          <geometry>
+            <mesh><uri>file:///home/myubuntu16/catkin_ws/src/xarm_ros/xarm_gazebo/worlds/ycb_obj/004_sugar_box/google_16k/textured.dae</uri></mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
+    <model name="005_tomato_soup_can">
+      <pose>0.1 -0.89 1.015  0 0 0</pose>
+      <static>true</static>
+      <link name="body">
+        <visual name="visual">
+          <geometry>
+            <mesh><uri>file:///home/myubuntu16/catkin_ws/src/xarm_ros/xarm_gazebo/worlds/ycb_obj/005_tomato_soup_can/google_16k/textured.dae</uri></mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
+    <model name="010_potted_meat_can">
+      <pose>-0.1 -0.80 1.015  0 0 0</pose>
+      <static>true</static>
+      <link name="body">
+        <visual name="visual">
+          <geometry>
+            <mesh><uri>file:///home/myubuntu16/catkin_ws/src/xarm_ros/xarm_gazebo/worlds/ycb_obj/010_potted_meat_can/google_16k/textured.dae</uri></mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
 
     <scene>
       <!-- Set blightness of world -->
