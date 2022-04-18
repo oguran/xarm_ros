@@ -51,6 +51,33 @@ bool CApproach::MoveToCognitionPose() {
     return true;
 }
 
+bool CApproach::ObjPoseCognition() {
+  geometry_msgs::PoseStamped target_obj_pose_camera;
+
+  {
+    std::lock_guard<std::mutex> lock(olm.mtx_pose_);
+    target_obj_pose_camera.header = olm.target_obj_pose_camera_.header;
+    copyPose(olm.target_obj_pose_camera_.pose, target_obj_pose_camera.pose);
+  }
+
+  // srecog_pose_listを把持対象物を基準とした座標系に変換
+  if (!olm.tfBuffer_.canTransform(TARGET_OBJ_FRAME, target_obj_pose_camera.header.frame_id, ros::Time(0), ros::Duration(10.0))) {
+    ROS_WARN("Could not lookup transform from %s to %s, in duration %f [sec]",
+        target_obj_pose_camera.header.frame_id.c_str(),
+        TARGET_OBJ_FRAME.c_str(),
+        10.0f);
+    return false;
+  }
+
+  try {
+    olm.tfBuffer_.transform(target_obj_pose_camera, target_obj_pose_local_, TARGET_OBJ_FRAME, ros::Duration(1.0));
+  } catch (tf2::TransformException &ex) {
+    ROS_WARN("%s", ex.what());
+    return false;
+  }
+
+}
+
 bool CApproach::DoApproach() {
     ROS_INFO("Opening gripper");
     control_msgs::GripperCommandGoal goal;
@@ -135,7 +162,7 @@ bool CApproach::DoApproach() {
     return true;
 }
 
-bool CApproach::DoApproachRotation() {
+bool CApproach::DoApproachRotationTest() {
     ROS_INFO("Rotation");
     geometry_msgs::PoseStamped l_grasp_pose[2];
     geometry_msgs::PoseStamped l_2nd_pose, g_2nd_pose;
@@ -333,5 +360,206 @@ bool CApproach::DoApproachRotation() {
 #endif
 
     return true;
+}
+
+
+bool CApproach::DoApproachRotation() {
+  ROS_INFO("Rotation");
+  geometry_msgs::PoseStamped l_grasp_pose[2];
+  geometry_msgs::PoseStamped l_2nd_pose, g_2nd_pose;
+  grasp_pose_[PREGRASP_POSE].header.frame_id = FIXED_FRAME;
+  {
+    std::lock_guard<std::mutex> lock(olm.mtx_point_);
+    copyPose(olm.target_pose_, grasp_pose_[PREGRASP_POSE].pose);
+  }
+  grasp_pose_[PREGRASP_POSE].pose.position.z += 0.10;
+
+  printPose("Global_based", grasp_pose_[PREGRASP_POSE].pose);
+
+  double roll, pitch, yaw;
+  GetRPY(grasp_pose_[PREGRASP_POSE].pose.orientation, roll, pitch, yaw);
+  printEuler("Global_based", roll, pitch, yaw);
+
+  {
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = grasp_pose_[PREGRASP_POSE].header.frame_id;
+    marker.header.stamp = ros::Time::now();
+    marker.ns = "basic_shapes";
+    marker.id = 0;
+
+    marker.type = visualization_msgs::Marker::CUBE;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.lifetime = ros::Duration();
+
+    marker.scale.x = 0.01;
+    marker.scale.y = 0.01;
+    marker.scale.z = 0.01;
+    copyPose(grasp_pose_[PREGRASP_POSE].pose, marker.pose);
+    marker.color.r = 0.5f;
+    marker.color.g = 0.5f;
+    marker.color.b = 0.5f;
+    marker.color.a = 1.0f;
+    pub_marker_target_3rd_.publish(marker);
+  }
+
+  // 把持対象物を基準とした座標系に変換
+  if (!olm.tfBuffer_.canTransform(TARGET_FRAME, FIXED_FRAME, ros::Time(0), ros::Duration(10.0))) {
+    ROS_WARN("Could not lookup transform from world to %s, in duration %f [sec]",
+        TARGET_FRAME.c_str(), 10.0f);
+    return false;
+  }
+
+  try {
+    olm.tfBuffer_.transform(grasp_pose_[PREGRASP_POSE], l_grasp_pose[PREGRASP_POSE], TARGET_FRAME, ros::Duration(1.0));
+  } catch (tf2::TransformException &ex) {
+    ROS_WARN("%s", ex.what());
+    return false;
+  }
+
+  printPose("Target_based", l_grasp_pose[PREGRASP_POSE].pose);
+  GetRPY(l_grasp_pose[PREGRASP_POSE].pose.orientation, roll, pitch, yaw);
+  printEuler("Target_based", roll, pitch, yaw);
+
+  l_grasp_pose[GRASP_POSE].header.frame_id = TARGET_FRAME;
+  copyPose(l_grasp_pose[PREGRASP_POSE].pose, l_grasp_pose[GRASP_POSE].pose);
+  l_grasp_pose[GRASP_POSE].pose.position.z += 0.14;
+
+  l_2nd_pose.header.frame_id = TARGET_FRAME;
+  copyPose(l_grasp_pose[GRASP_POSE].pose, l_2nd_pose.pose);
+
+  double rot_roll, rot_pitch, rot_yaw;
+  GetRPY(target_obj_pose_local_.pose.orientation, rot_roll, rot_pitch, rot_yaw);
+
+  // Z axis (Yaw) rotation
+  double theta_y = -rot_yaw;
+  ROS_INFO("theta_y = %f", theta_y);
+  l_grasp_pose[PREGRASP_POSE].pose.position.x = l_grasp_pose[PREGRASP_POSE].pose.position.x * cos(theta_y) - l_grasp_pose[PREGRASP_POSE].pose.position.y * sin(theta_y);
+  l_grasp_pose[GRASP_POSE].pose.position.x = l_grasp_pose[GRASP_POSE].pose.position.x * cos(theta_y) - l_grasp_pose[GRASP_POSE].pose.position.y * sin(theta_y);
+  l_grasp_pose[PREGRASP_POSE].pose.position.y = l_grasp_pose[PREGRASP_POSE].pose.position.x * sin(theta_y) + l_grasp_pose[PREGRASP_POSE].pose.position.y * cos(theta_y);
+  l_grasp_pose[GRASP_POSE].pose.position.y = l_grasp_pose[GRASP_POSE].pose.position.x * sin(theta_y) + l_grasp_pose[GRASP_POSE].pose.position.y * cos(theta_y);
+  yaw += theta_y;
+
+  // Y axis (Pitch) rotation
+  double theta_p = -rot_pitch;
+  ROS_INFO("theta_p = %f", theta_p);
+  l_grasp_pose[PREGRASP_POSE].pose.position.x = l_grasp_pose[PREGRASP_POSE].pose.position.x * sin(theta_p) + l_grasp_pose[PREGRASP_POSE].pose.position.z * sin(theta_p);
+  l_grasp_pose[GRASP_POSE].pose.position.x = l_grasp_pose[GRASP_POSE].pose.position.x * sin(theta_p) + l_grasp_pose[GRASP_POSE].pose.position.z * sin(theta_p);
+  l_grasp_pose[PREGRASP_POSE].pose.position.z = -l_grasp_pose[PREGRASP_POSE].pose.position.x * sin(theta_p) + l_grasp_pose[PREGRASP_POSE].pose.position.z * cos(theta_p);
+  //l_grasp_pose[GRASP_POSE].pose.position.z = -l_grasp_pose[GRASP_POSE].pose.position.x * sin(theta_p) + l_grasp_pose[GRASP_POSE].pose.position.z * cos(theta_p);
+  // TODO tentative
+  l_grasp_pose[GRASP_POSE].pose.position.z = -l_grasp_pose[GRASP_POSE].pose.position.x * sin(theta_p) + l_grasp_pose[GRASP_POSE].pose.position.z * cos(theta_p) + 0.035;
+  pitch += theta_p;
+
+  // X axis (Roll) rotation
+  double theta_r = -rot_roll;
+  ROS_INFO("theta_r = %f", theta_r);
+  l_grasp_pose[PREGRASP_POSE].pose.position.y = l_grasp_pose[PREGRASP_POSE].pose.position.y * cos(theta_r) - l_grasp_pose[PREGRASP_POSE].pose.position.z * sin(theta_r);
+  l_grasp_pose[GRASP_POSE].pose.position.y = l_grasp_pose[GRASP_POSE].pose.position.y * cos(theta_r) - l_grasp_pose[GRASP_POSE].pose.position.z * sin(theta_r);
+  l_grasp_pose[PREGRASP_POSE].pose.position.z = l_grasp_pose[PREGRASP_POSE].pose.position.y * sin(theta_r) + l_grasp_pose[PREGRASP_POSE].pose.position.z * cos(theta_r);
+  l_grasp_pose[GRASP_POSE].pose.position.z = l_grasp_pose[GRASP_POSE].pose.position.y * sin(theta_r) + l_grasp_pose[GRASP_POSE].pose.position.z * cos(theta_r);
+  roll += theta_r;
+
+  GetQuaternionMsg(roll, pitch, yaw, l_grasp_pose[PREGRASP_POSE].pose.orientation);
+  GetQuaternionMsg(roll, pitch, yaw, l_grasp_pose[GRASP_POSE].pose.orientation);
+
+  grasp_pose_[POSTGRASP_POSE].header.frame_id = target_pose_1st_.header.frame_id;
+  copyPose(target_pose_1st_.pose, grasp_pose_[POSTGRASP_POSE].pose);
+
+  // Global座標を基準とした座標系に変換
+  if (!olm.tfBuffer_.canTransform(FIXED_FRAME, TARGET_FRAME, ros::Time(0), ros::Duration(10.0))) {
+    ROS_WARN("Could not lookup transform from world to %s, in duration %f [sec]",
+        TARGET_FRAME.c_str(), 1.0f);
+    return false;
+  }
+
+  try {
+    olm.tfBuffer_.transform(l_grasp_pose[PREGRASP_POSE], grasp_pose_[PREGRASP_POSE], FIXED_FRAME, ros::Duration(1.0));
+  } catch (tf2::TransformException &ex) {
+    ROS_WARN("%s", ex.what());
+    return false;
+  }
+
+  printPose("grasp_pose_[PREGRASP_POSE]", grasp_pose_[PREGRASP_POSE].pose);
+
+  GetRPY(grasp_pose_[PREGRASP_POSE].pose.orientation, roll, pitch, yaw);
+  printEuler("grasp_pose_[PREGRASP_POSE]", roll, pitch, yaw);
+
+  try {
+    olm.tfBuffer_.transform(l_grasp_pose[GRASP_POSE], grasp_pose_[GRASP_POSE], FIXED_FRAME, ros::Duration(1.0));
+    olm.tfBuffer_.transform(l_2nd_pose, g_2nd_pose, FIXED_FRAME, ros::Duration(1.0));
+  } catch (tf2::TransformException &ex) {
+    ROS_WARN("%s", ex.what());
+    return false;
+  }
+
+  {
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = FIXED_FRAME;
+    marker.header.stamp = ros::Time::now();
+    marker.ns = "basic_shapes";
+    marker.id = 0;
+
+    marker.type = visualization_msgs::Marker::CUBE;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.lifetime = ros::Duration();
+
+    marker.scale.x = 0.01;
+    marker.scale.y = 0.01;
+    marker.scale.z = 0.01;
+    copyPose(g_2nd_pose.pose, marker.pose);
+    marker.color.r = 0.5f;
+    marker.color.g = 0.5f;
+    marker.color.b = 0.0f;
+    marker.color.a = 1.0f;
+    pub_marker_target_2nd_.publish(marker);
+  }
+
+  printPose("grasp_pose_[GRASP_POSE]", grasp_pose_[GRASP_POSE].pose);
+
+  GetRPY(grasp_pose_[GRASP_POSE].pose.orientation, roll, pitch, yaw);
+  printEuler("grasp_pose_[GRASP_POSE]", roll, pitch, yaw);
+
+  {
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = grasp_pose_[GRASP_POSE].header.frame_id;
+    marker.header.stamp = ros::Time::now();
+    marker.ns = "basic_shapes";
+    marker.id = 0;
+
+    marker.type = visualization_msgs::Marker::CUBE;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.lifetime = ros::Duration();
+
+    marker.scale.x = 0.01;
+    marker.scale.y = 0.01;
+    marker.scale.z = 0.01;
+    copyPose(grasp_pose_[GRASP_POSE].pose, marker.pose);
+    marker.color.r = 1.0f;
+    marker.color.g = 0.0f;
+    marker.color.b = 0.0f;
+    marker.color.a = 1.0f;
+    pub_marker_target_rot_.publish(marker);
+  }
+
+#if 1
+  arm_.setPoseTarget(grasp_pose_[PREGRASP_POSE]);
+  if (!arm_.move()) {
+    ROS_WARN("Could not rotation");
+    return false;
+  }
+
+  ros::Duration(2).sleep();
+
+  geometry_msgs::TransformStamped approached_ts;
+  try { // link_tcpの現座標を取得
+    approached_ts = olm.tfBuffer_.lookupTransform(FIXED_FRAME, "link_tcp", ros::Time(0), ros::Duration(1.0));
+  } catch (tf2::TransformException &ex) {
+    ROS_WARN("%s", ex.what());
+    return false;
+  }
+  transformTFStampedToPoseStamped(approached_ts, approaced_pose_);
+#endif
+
+  return true;
 }
 

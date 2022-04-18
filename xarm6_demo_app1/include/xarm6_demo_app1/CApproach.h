@@ -20,7 +20,9 @@ class CApproach {
   public:
     explicit CApproach(ros::NodeHandle& node_handle, CObjListManager& olm);
     bool MoveToCognitionPose();
+    bool ObjPoseCognition();
     bool DoApproach();
+    bool DoApproachRotationTest();
     bool DoApproachRotation();
 
     const unsigned int PREGRASP_POSE = 0;
@@ -39,9 +41,11 @@ class CApproach {
     ros::Publisher pub_marker_target_3rd_;
     ros::Publisher pub_marker_target_rot_;
     geometry_msgs::PoseStamped cognition_pose_;
+    geometry_msgs::PoseStamped target_obj_pose_local_;
 
     const std::string FIXED_FRAME = "world";
     const std::string TARGET_FRAME = "target";
+    const std::string TARGET_OBJ_FRAME = "posecnn/00_potted_meat_can_01";
     ros::NodeHandle& node_handle;
     CObjListManager& olm;
 };

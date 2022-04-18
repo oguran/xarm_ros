@@ -51,7 +51,7 @@ class CObjListManager {
     void ObjPoseListCallback(const srecog_msgs::ObjPoseList& obj_pose_list);
     void ObjPointListCallback(const srecog_msgs::ObjPointList& obj_point_list);
 
-    srecog_msgs::ObjPoseList obj_pose_list_;
+    geometry_msgs::PoseStamped target_obj_pose_camera_;
     geometry_msgs::Pose target_pose_;
     std::mutex mtx_point_;
     std::mutex mtx_pose_;
@@ -59,6 +59,7 @@ class CObjListManager {
     tf2_ros::TransformListener tflistener_;
     image_geometry::PinholeCameraModel cam_model_;
     ros::Publisher pub_marker_target_;
+    ros::Publisher pub_marker_target_pose_list_;
     ros::Subscriber sub_cinfo_;
     ros::Subscriber sub_obj_pose_list_;
     ros::Subscriber sub_obj_point_list_;
