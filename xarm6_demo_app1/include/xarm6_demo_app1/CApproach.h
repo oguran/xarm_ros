@@ -29,6 +29,8 @@ class CApproach {
     const unsigned int GRASP_POSE = 1;
     const unsigned int POSTGRASP_POSE = 2;
 
+    const float PREGRASP_DISTANCE = 0.20f;
+
     geometry_msgs::PoseStamped approaced_pose_;
     geometry_msgs::PoseStamped grasp_pose_[3]; // 0:pre-grasp, 1:grasp, 2:post-grasp
     geometry_msgs::PoseStamped target_pose_1st_;

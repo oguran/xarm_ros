@@ -113,7 +113,7 @@ bool CApproach::DoApproach() {
     geometry_msgs::PoseStamped approached_pose;
     copyPose(target_pose_1st_.pose, approached_pose.pose);
     approached_pose.header.frame_id = target_pose_1st_.header.frame_id;
-    approached_pose.pose.position.z += 0.10;
+    approached_pose.pose.position.z += PREGRASP_DISTANCE;
 
     printPose("link_eff", approached_pose.pose);
     double roll, pitch, yaw;
@@ -171,7 +171,7 @@ bool CApproach::DoApproachRotationTest() {
         std::lock_guard<std::mutex> lock(olm.mtx_point_);
         copyPose(olm.target_pose_, grasp_pose_[PREGRASP_POSE].pose);
     }
-    grasp_pose_[PREGRASP_POSE].pose.position.z += 0.10;
+    grasp_pose_[PREGRASP_POSE].pose.position.z += PREGRASP_DISTANCE;
 
     printPose("Global_based", grasp_pose_[PREGRASP_POSE].pose);
 
@@ -372,7 +372,7 @@ bool CApproach::DoApproachRotation() {
     std::lock_guard<std::mutex> lock(olm.mtx_point_);
     copyPose(olm.target_pose_, grasp_pose_[PREGRASP_POSE].pose);
   }
-  grasp_pose_[PREGRASP_POSE].pose.position.z += 0.10;
+  grasp_pose_[PREGRASP_POSE].pose.position.z += PREGRASP_DISTANCE;
 
   printPose("Global_based", grasp_pose_[PREGRASP_POSE].pose);
 

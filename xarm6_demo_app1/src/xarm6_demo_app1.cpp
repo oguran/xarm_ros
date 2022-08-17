@@ -33,7 +33,7 @@ int main(int argc, char** argv)
   //aprch.DoApproachRotationTest();
   aprch.DoApproachRotation();
 
-#if 1
+#if 0
   CGrasp grasp(node_handle, olm, aprch);
   if (velctl) {
     grasp.PickVelocity();
