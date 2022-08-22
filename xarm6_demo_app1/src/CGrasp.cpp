@@ -136,12 +136,12 @@ bool CGrasp::Grasp() {
 bool CGrasp::PostGrasp() {
     ROS_INFO("Moving to PostGrasped pose");
 
-    printPose("PostGrasped", aprch.approaced_pose_.pose);
+    printPose("PostGrasped", aprch.approached_link_tcp_pose_.pose);
     double roll, pitch, yaw;
-    GetRPY(aprch.approaced_pose_.pose.orientation, roll, pitch, yaw);
+    GetRPY(aprch.approached_link_tcp_pose_.pose.orientation, roll, pitch, yaw);
     printEuler("Postgrasped", roll, pitch, yaw);
 
-    pub_arm_cartesian_.publish(aprch.approaced_pose_);
+    pub_arm_cartesian_.publish(aprch.approached_link_tcp_pose_);
 
     ROS_INFO("Moved to PostGrasped pose");
 
@@ -255,7 +255,7 @@ bool CGrasp::PickVelocity() {
                 if (count > 50) {
                     ROS_INFO("Grasped: abs = %f, target_z = %f, current_z = %f",
                             abs, p_target->pose.position.z, current_pose.pose.position.z);
-                    p_target = &aprch.approaced_pose_;
+                    p_target = &aprch.approached_link_tcp_pose_;
                     status = GRASPED;
                     count = 0;
                 }

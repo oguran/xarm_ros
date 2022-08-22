@@ -31,7 +31,8 @@ class CApproach {
 
     const float PREGRASP_DISTANCE = 0.20f;
 
-    geometry_msgs::PoseStamped approaced_pose_;
+    geometry_msgs::PoseStamped approached_link_eef_pose_;
+    geometry_msgs::PoseStamped approached_link_tcp_pose_;
     geometry_msgs::PoseStamped grasp_pose_[3]; // 0:pre-grasp, 1:grasp, 2:post-grasp
     geometry_msgs::PoseStamped target_pose_1st_;
 
@@ -47,7 +48,6 @@ class CApproach {
 
     const std::string FIXED_FRAME = "world";
     const std::string TARGET_FRAME = "target";
-    const std::string TARGET_OBJ_FRAME = "posecnn/00_potted_meat_can_01";
     ros::NodeHandle& node_handle;
     CObjListManager& olm;
 };

@@ -19,45 +19,71 @@ void CObjListManager::CameraInfoCallback(const sensor_msgs::CameraInfoConstPtr& 
   rcv_cinfo = true;
 }
 
-  static int print_cnt = 0;
 void CObjListManager::ObjPoseListCallback(const srecog_msgs::ObjPoseList& obj_pose_list) {
   if (obj_pose_list.obj_poses.empty()) {
     // 把持対象物が認識されていない場合は何もしない
     return;
   }
 
+  geometry_msgs::PoseStamped target_obj_pose_camera;
+  geometry_msgs::PoseStamped target_obj_pose_arm_base;
+
+  target_obj_pose_camera.header = obj_pose_list.header;
+  target_obj_pose_camera.pose = obj_pose_list.obj_poses[0].poses[0];
+
   {
     std::lock_guard<std::mutex> lock(mtx_pose_);
 
-    target_obj_pose_camera_.header = obj_pose_list.header;
-    target_obj_pose_camera_.header.stamp = ros::Time::now();
-    target_obj_pose_camera_.pose = obj_pose_list.obj_poses[0].poses[0];
+    vect_target_obj_pose_camera_.clear();
+    std::for_each(std::begin(obj_pose_list.obj_poses[0].poses), std::end(obj_pose_list.obj_poses[0].poses),
+        [&](geometry_msgs::Pose pose) {
+        geometry_msgs::PoseStamped ps;
+        ps.header = obj_pose_list.header;
+        ps.pose = pose;
+        vect_target_obj_pose_camera_.push_back(ps);
+        });
   }
 
-#if 0 // for debug
-  if ((print_cnt++ % 10) == 0) {
-    double roll, pitch, yaw;
-    GetRPY(target_obj_pose_camera_.pose.orientation, roll, pitch, yaw);
-    printEuler("srecog_pose_camera", roll, pitch, yaw);
-
-    geometry_msgs::PoseStamped target_obj_pose_local;
-    const std::string TARGET_OBJ_FRAME = "posecnn/00_potted_meat_can_01";
-    try {
-      tfBuffer_.transform(target_obj_pose_camera_, target_obj_pose_local, TARGET_OBJ_FRAME, ros::Duration(1.0));
-    } catch (tf2::TransformException &ex) {
-      ROS_WARN("%s", ex.what());
-      return;
-    }
-
-    GetRPY(target_obj_pose_local.pose.orientation, roll, pitch, yaw);
-    printEuler("srecog_pose_local ", roll, pitch, yaw);
-    ROS_INFO(" ----- ");
+// FIXME srecogから不正なobj_pose_listが来た場合に、不正な把持対象物のTFを投げてしまう
+// TODO Callback内 -> 別スレッドに処理移動
+#if 1 
+  if (!tfBuffer_.canTransform(FIXED_FRAME, target_obj_pose_camera.header.frame_id, ros::Time(0), ros::Duration(1.0))) {
+    ROS_WARN("Could not lookup transform from %s to %s, in duration %f [sec]",
+        target_obj_pose_camera.header.frame_id.c_str(),
+        FIXED_FRAME.c_str(),
+        10.0f);
+    return;
   }
+
+  try {
+    tfBuffer_.transform(target_obj_pose_camera, target_obj_pose_arm_base, FIXED_FRAME, ros::Duration(1.0));
+  } catch (tf2::TransformException &ex) {
+    ROS_WARN("%s", ex.what());
+    return;
+  }
+
+  // 把持対象物のTFを作成＆broadcastする
+  tf2_ros::TransformBroadcaster br;
+  geometry_msgs::TransformStamped tfs;
+
+  tfs.header = target_obj_pose_arm_base.header;
+  tfs.child_frame_id = TARGET_FRAME;
+  tfs.transform.translation.x = target_obj_pose_arm_base.pose.position.x;
+  tfs.transform.translation.y = target_obj_pose_arm_base.pose.position.y;
+  tfs.transform.translation.z = target_obj_pose_arm_base.pose.position.z;
+  tfs.transform.rotation.x = target_obj_pose_arm_base.pose.orientation.x;
+  tfs.transform.rotation.y = target_obj_pose_arm_base.pose.orientation.y;
+  tfs.transform.rotation.z = target_obj_pose_arm_base.pose.orientation.z;
+  tfs.transform.rotation.w = target_obj_pose_arm_base.pose.orientation.w;;
+
+  br.sendTransform(tfs);
 #endif
-  {
+
+
+  { // for debug
     visualization_msgs::Marker marker;
-    marker.header.frame_id = target_obj_pose_camera_.header.frame_id;
-    marker.header.stamp = ros::Time::now();
+    marker.header.frame_id = vect_target_obj_pose_camera_.at(0).header.frame_id;
+    marker.header.stamp = vect_target_obj_pose_camera_.at(0).header.stamp;
     marker.ns = "basic_shapes";
     marker.id = 0;
 
@@ -69,7 +95,7 @@ void CObjListManager::ObjPoseListCallback(const srecog_msgs::ObjPoseList& obj_po
     marker.scale.x = 0.01;
     marker.scale.y = 0.01;
     marker.scale.z = 0.01;
-    copyPose(target_obj_pose_camera_.pose, marker.pose);
+    copyPose(vect_target_obj_pose_camera_.at(0).pose, marker.pose);
     marker.color.r = 0.0f;
     marker.color.g = 0.0f;
     marker.color.b = 0.0f;
@@ -151,20 +177,5 @@ void CObjListManager::ObjPointListCallback(const srecog_msgs::ObjPointList& obj_
     target_pose_.orientation = approaching_pose.pose.orientation;
   }
 
-  // 把持対象物のTFを作成＆broadcastする
-  tf2_ros::TransformBroadcaster br;
-  geometry_msgs::TransformStamped tfs;
-
-  tfs.header.frame_id = FIXED_FRAME;
-  tfs.child_frame_id = TARGET_FRAME;
-  tfs.transform.translation.x = target_pose_.position.x;
-  tfs.transform.translation.y = target_pose_.position.y;
-  tfs.transform.translation.z = target_pose_.position.z;
-  tfs.transform.rotation.x = target_pose_.orientation.x;
-  tfs.transform.rotation.y = target_pose_.orientation.y;
-  tfs.transform.rotation.z = target_pose_.orientation.z;
-  tfs.transform.rotation.w = target_pose_.orientation.w;;
-
-  br.sendTransform(tfs);
 }
 

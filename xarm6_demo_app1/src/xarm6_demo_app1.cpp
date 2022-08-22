@@ -29,11 +29,11 @@ int main(int argc, char** argv)
   aprch.MoveToCognitionPose();
   ros::Duration(3).sleep();
   aprch.ObjPoseCognition();
-  aprch.DoApproach();
-  //aprch.DoApproachRotationTest();
-  aprch.DoApproachRotation();
-
 #if 0
+  aprch.DoApproach();
+  aprch.DoApproachRotationTest();
+  //aprch.DoApproachRotation();
+
   CGrasp grasp(node_handle, olm, aprch);
   if (velctl) {
     grasp.PickVelocity();

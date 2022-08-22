@@ -51,7 +51,7 @@ class CObjListManager {
     void ObjPoseListCallback(const srecog_msgs::ObjPoseList& obj_pose_list);
     void ObjPointListCallback(const srecog_msgs::ObjPointList& obj_point_list);
 
-    geometry_msgs::PoseStamped target_obj_pose_camera_;
+    std::vector<geometry_msgs::PoseStamped> vect_target_obj_pose_camera_;
     geometry_msgs::Pose target_pose_;
     std::mutex mtx_point_;
     std::mutex mtx_pose_;
