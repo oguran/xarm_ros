@@ -2,7 +2,8 @@
 #include <xarm6_demo_app1/CGrasp.h>
 #include <xarm6_demo_app1/CObjListManager.h>
 #include <xarm6_demo_app1/CMovingAveragePose.h>
-#include <xarm6_demo_app1/Utility.h>
+
+extern void timer_callback(const ros::TimerEvent& e);
 
 int main(int argc, char** argv)
 {
@@ -27,11 +28,25 @@ int main(int argc, char** argv)
 
   CApproach aprch(node_handle, olm);
   aprch.MoveToCognitionPose();
-  ros::Duration(3).sleep();
+
+  ros::Duration(10).sleep();
+
   aprch.ObjPoseCognition();
-#if 0
+
   aprch.DoApproach();
+
+  ros::Duration(10).sleep();
+
   aprch.DoApproachRotationTest();
+#if 0
+  ros::Rate rate(10);
+  while (ros::ok()) {
+    aprch.DoApproachRotationTest();
+    rate.sleep();
+  }
+#endif
+
+#if 0
   //aprch.DoApproachRotation();
 
   CGrasp grasp(node_handle, olm, aprch);

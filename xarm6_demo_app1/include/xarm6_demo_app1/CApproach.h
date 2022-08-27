@@ -23,6 +23,7 @@ class CApproach {
     bool ObjPoseCognition();
     bool DoApproach();
     bool DoApproachRotationTest();
+    bool DoApproachRotationTest_backup();
     bool DoApproachRotation();
 
     const unsigned int PREGRASP_POSE = 0;
@@ -45,6 +46,7 @@ class CApproach {
     ros::Publisher pub_marker_target_rot_;
     geometry_msgs::PoseStamped cognition_pose_;
     geometry_msgs::PoseStamped target_obj_pose_local_;
+    tf2_ros::TransformBroadcaster tf_bc_;
 
     const std::string FIXED_FRAME = "world";
     const std::string TARGET_FRAME = "target";

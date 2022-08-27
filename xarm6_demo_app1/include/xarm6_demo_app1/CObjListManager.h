@@ -63,6 +63,7 @@ class CObjListManager {
     ros::Subscriber sub_cinfo_;
     ros::Subscriber sub_obj_pose_list_;
     ros::Subscriber sub_obj_point_list_;
+    tf2_ros::TransformBroadcaster tf_bc_;
 
   private:
     bool rcv_cinfo = false;

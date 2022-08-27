@@ -42,6 +42,14 @@
 #include <visualization_msgs/Marker.h>
 #include <depth_image_proc/depth_traits.h>
 
+
+#if 1
+#include <xarm6_demo_app1/EulerAngle.h>
+#include <xarm6_demo_app1/Quaternion.h>
+#include <xarm6_demo_app1/RotationMatrix.h>
+#include <xarm6_demo_app1/conversion.h>
+#endif
+
 /**
  * @brief RPYからクオータニオンを取得する関数
  *
@@ -131,6 +139,50 @@ inline void printPose(std::string const& msg, const geometry_msgs::Pose &pose) {
 inline void printEuler(std::string const& msg, float roll, float pitch, float yaw) {
   ROS_INFO("%s roll, pitch, yaw  = %f, %f, %f", msg.c_str(), (float)roll, (float)pitch, (float)yaw);
 }
+
+
+inline RotationMatrix calculateRotationMatrix(const EulerAngle e) {
+  auto x = RotationMatrix::rotationX(e.x);
+  auto y = RotationMatrix::rotationY(e.y);
+  auto z = RotationMatrix::rotationZ(e.z);
+  switch (e.order) {
+  case EulerOrder::XYZ:
+    return x * y * z;
+  case EulerOrder::XZY:
+    return x * z * y;
+  case EulerOrder::YXZ:
+    return y * x * z;
+  case EulerOrder::YZX:
+    return y * z * x;
+  case EulerOrder::ZXY:
+    return z * x * y;
+  case EulerOrder::ZYX:
+    return z * y * x;
+  }
+  throw "order of euler angle does not matched.";
+}
+
+inline xarm6_demo_app1::Quaternion calculateQuaternion(const EulerAngle e) {
+  auto x = xarm6_demo_app1::Quaternion::rotationX(e.x);
+  auto y = xarm6_demo_app1::Quaternion::rotationY(e.y);
+  auto z = xarm6_demo_app1::Quaternion::rotationZ(e.z);
+  switch (e.order) {
+  case EulerOrder::XYZ:
+    return x * y * z;
+  case EulerOrder::XZY:
+    return x * z * y;
+  case EulerOrder::YXZ:
+    return y * x * z;
+  case EulerOrder::YZX:
+    return y * z * x;
+  case EulerOrder::ZXY:
+    return z * x * y;
+  case EulerOrder::ZYX:
+    return z * y * x;
+  }
+  throw "order of euler angle does not matched.";
+}
+
 
 #if 0
 void ShowControllerStatistics(ros::NodeHandle& node_handle,) {
