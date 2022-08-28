@@ -38,17 +38,20 @@ int main(int argc, char** argv)
   ros::Duration(10).sleep();
 
   aprch.DoApproachRotationTest();
+
+  ros::Duration(10).sleep();
+
+  CGrasp grasp(node_handle, olm, aprch);
+  grasp.PreGraspCartesian();
+
 #if 0
   ros::Rate rate(10);
   while (ros::ok()) {
-    aprch.DoApproachRotationTest();
     rate.sleep();
   }
 #endif
 
 #if 0
-  //aprch.DoApproachRotation();
-
   CGrasp grasp(node_handle, olm, aprch);
   if (velctl) {
     grasp.PickVelocity();

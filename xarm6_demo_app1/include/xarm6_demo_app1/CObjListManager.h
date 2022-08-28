@@ -14,6 +14,7 @@
 #include <moveit_visual_tools/moveit_visual_tools.h>
 
 #include <std_msgs/Duration.h>
+#include <std_msgs/Header.h>
 #include <mutex>
 #include <math.h>
 
@@ -47,29 +48,47 @@ class CObjListManager {
   public:
     explicit CObjListManager(ros::NodeHandle& node_handle);
 
-    void CameraInfoCallback(const sensor_msgs::CameraInfoConstPtr& msg_cinfo);
+    //void CameraInfoCallback(const sensor_msgs::CameraInfoConstPtr& msg_cinfo);
     void ObjPoseListCallback(const srecog_msgs::ObjPoseList& obj_pose_list);
     void ObjPointListCallback(const srecog_msgs::ObjPointList& obj_point_list);
 
+    const std::string FIXED_FRAME = "world";
+    const std::string TARGET_FRAME = "target";
+
+    class CObjPoint {
+      public:
+      CObjPoint() : class_name_(""), header_() {}
+      CObjPoint(std::string class_name, std_msgs::Header header,
+          geometry_msgs::Point center, geometry_msgs::Point left, geometry_msgs::Point right)
+        : class_name_(class_name), header_(header) { center_ = center; left_ = left; right_ = right; }
+      std::string class_name_;
+      std_msgs::Header header_;
+      geometry_msgs::Point center_;
+      geometry_msgs::Point left_;
+      geometry_msgs::Point right_;
+    };
+
     std::vector<geometry_msgs::PoseStamped> vect_target_obj_pose_camera_;
-    geometry_msgs::Pose target_pose_;
-    std::mutex mtx_point_;
-    std::mutex mtx_pose_;
-    tf2_ros::Buffer tfBuffer_;
+    std::vector<CObjPoint> vect_target_obj_point_camera_;
+    tf2_ros::Buffer tfBuffer_; // Caution tf2_ros::Bufferは、tf2_ros::TransformListenerより前に定義する必要あり
     tf2_ros::TransformListener tflistener_;
-    image_geometry::PinholeCameraModel cam_model_;
-    ros::Publisher pub_marker_target_;
-    ros::Publisher pub_marker_target_pose_list_;
-    ros::Subscriber sub_cinfo_;
+    std::mutex mtx_pose_;
+    std::mutex mtx_point_;
     ros::Subscriber sub_obj_pose_list_;
     ros::Subscriber sub_obj_point_list_;
     tf2_ros::TransformBroadcaster tf_bc_;
 
-  private:
-    bool rcv_cinfo = false;
+    // for debug
+    ros::Publisher pub_marker_target_point_;
+    //image_geometry::PinholeCameraModel cam_model_;
+    //ros::Subscriber sub_cinfo_;
 
-    const std::string FIXED_FRAME = "world";
-    const std::string TARGET_FRAME = "target";
+    // TODO need to delete
+    geometry_msgs::Pose target_pose_;
+
+  private:
+    //bool rcv_cinfo = false;
+
 };
 
 #endif // XARM6_DEMO_APP1_COBJLISTMANAGER_H

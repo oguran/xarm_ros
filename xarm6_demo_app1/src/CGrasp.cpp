@@ -15,6 +15,87 @@ CGrasp::CGrasp(ros::NodeHandle& node_handle, CObjListManager& olm, CApproach& ap
         ROS_INFO("Subscribe prepared!");
     }
 
+bool CGrasp::PreGraspCartesian() {
+  std::vector<std::string> start_controller;
+  start_controller.push_back("xarm6_cartesian_motion_controller");
+  std::vector<std::string> stop_controller;
+  stop_controller.push_back("xarm6_traj_controller");
+
+  if (false == SwitchController(node_handle, start_controller, stop_controller)) {
+    return false;
+  }
+  ros::Duration(2).sleep();
+
+  ROS_INFO("Moving to grasp pose");
+
+  geometry_msgs::PoseStamped target_obj_pose_camera;
+  CObjListManager::CObjPoint target_obj_point;
+
+  {
+    std::lock_guard<std::mutex> lock(olm.mtx_point_);
+    if (olm.vect_target_obj_point_camera_.empty()) return false;
+    target_obj_point.class_name_ = olm.vect_target_obj_point_camera_.at(0).class_name_;
+    target_obj_point.header_ = olm.vect_target_obj_point_camera_.at(0).header_;
+    target_obj_point.center_ = olm.vect_target_obj_point_camera_.at(0).center_;
+    target_obj_point.left_ = olm.vect_target_obj_point_camera_.at(0).left_;
+    target_obj_point.right_ = olm.vect_target_obj_point_camera_.at(0).right_;
+  }
+
+  geometry_msgs::TransformStamped tfs_linktcp_on_camera_frame;
+  geometry_msgs::PoseStamped ps_goal_on_camera_frame, ps_goal_on_fixed_frame;
+
+  try { // target_linkのcamera座標系を基準とした現座標を取得
+    tfs_linktcp_on_camera_frame = olm.tfBuffer_.lookupTransform(target_obj_point.header_.frame_id, CAR_CTL_EEF_LINK,
+        ros::Time(0), ros::Duration(1.0));
+  } catch (tf2::TransformException &ex) {
+    ROS_WARN("%s", ex.what());
+    return false;
+  }
+  transformTFStampedToPoseStamped(tfs_linktcp_on_camera_frame, ps_goal_on_camera_frame);
+
+  // 座標をObjPointの値に上書き
+  ps_goal_on_camera_frame.pose.position = target_obj_point.center_;
+  // グリッパの間に入れるために、カメラ座標の奥方向(z+)に10cmずらす
+  ps_goal_on_camera_frame.pose.position.z += GRASP_OFFSET;
+
+  // カメラ座標系 -> ロボット基準座標系に変換
+  if (!olm.tfBuffer_.canTransform(FIXED_FRAME, ps_goal_on_camera_frame.header.frame_id, ros::Time(0), ros::Duration(10.0))) {
+    ROS_WARN("Could not lookup transform from %s to %s, in duration %f [sec]",
+        ps_goal_on_camera_frame.header.frame_id.c_str(),
+        FIXED_FRAME.c_str(),
+        10.0f);
+    return false;
+  }
+
+  try {
+    olm.tfBuffer_.transform(ps_goal_on_camera_frame, ps_goal_on_fixed_frame, FIXED_FRAME, ros::Duration(10.0));
+  } catch (tf2::TransformException &ex) {
+    ROS_WARN("%s", ex.what());
+    return false;
+  }
+
+  // Catesian制御でPreGrasp実行
+  pub_arm_cartesian_.publish(ps_goal_on_fixed_frame);
+  ros::Duration(10).sleep();
+  ROS_INFO("Moved to grasping pose");
+
+
+  // -------------------
+  start_controller.clear();
+  start_controller.push_back("xarm6_traj_controller");
+  stop_controller.clear();
+  stop_controller.push_back("xarm6_cartesian_motion_controller");
+
+  ros::Duration(6).sleep();
+
+  if (false == SwitchController(node_handle, start_controller, stop_controller)) {
+    return false;
+  }
+  // -------------------
+
+  return true;
+}
+
 bool CGrasp::PreGrasp() {
     std::vector<std::string> start_controller;
     start_controller.push_back("xarm6_cartesian_motion_controller");
@@ -383,7 +464,7 @@ bool CGrasp::CartesianVelCtrlOnPosCtrl(geometry_msgs::PoseStamped target_pose) {
     geometry_msgs::PoseStamped current_pose;;
     geometry_msgs::TransformStamped approached_ts;
     try { // target_linkの現座標を取得
-        approached_ts = olm.tfBuffer_.lookupTransform(FIXED_FRAME, CAR_CTL_VEL_TARGET_LINK,
+        approached_ts = olm.tfBuffer_.lookupTransform(FIXED_FRAME, CAR_CTL_EEF_LINK,
                 ros::Time(0), ros::Duration(1.0));
     } catch (tf2::TransformException &ex) {
         ROS_WARN("%s", ex.what());
@@ -423,7 +504,7 @@ bool CGrasp::CartesianVelCtrlOnPosCtrl(geometry_msgs::PoseStamped target_pose) {
         ros::Duration duration = now - prev;
 
         try { // target_linkの現座標を取得
-            approached_ts = olm.tfBuffer_.lookupTransform(FIXED_FRAME, CAR_CTL_VEL_TARGET_LINK,
+            approached_ts = olm.tfBuffer_.lookupTransform(FIXED_FRAME, CAR_CTL_EEF_LINK,
                     ros::Time(0), ros::Duration(1.0));
         } catch (tf2::TransformException &ex) {
             ROS_WARN("%s", ex.what());

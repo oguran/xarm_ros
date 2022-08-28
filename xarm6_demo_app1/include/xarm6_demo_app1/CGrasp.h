@@ -49,6 +49,7 @@ class CGrasp {
   public:
     explicit CGrasp(ros::NodeHandle& node_handle, CObjListManager& olm, CApproach& aprch);
     bool PreGrasp();
+    bool PreGraspCartesian();
     bool PreGraspVelocity();
     bool Grasp();
     bool PostGrasp();
@@ -70,7 +71,8 @@ class CGrasp {
     const unsigned int CAR_CTL_DURATION = 50;
     const float CAR_CTL_VEL_P = 2.0;
     const float CAR_CTL_VEL_R = 2.0;
-    const std::string CAR_CTL_VEL_TARGET_LINK = "link_tcp";
+    const std::string CAR_CTL_EEF_LINK = "link_tcp";
+    const double GRASP_OFFSET = 0.05; //< Graspする際にlink_tcpからカメラ座標のz+方向にオフセットさせる距離
 
     ros::NodeHandle& node_handle;
     CObjListManager& olm;

@@ -4,20 +4,21 @@
 CObjListManager::CObjListManager(ros::NodeHandle& node_handle)
       : tflistener_(tfBuffer_)
 {
-  sub_cinfo_ = node_handle.subscribe("/camera/depth/camera_info", 10, &CObjListManager::CameraInfoCallback, this);
+  //sub_cinfo_ = node_handle.subscribe("/camera/depth/camera_info", 10, &CObjListManager::CameraInfoCallback, this);
   sub_obj_pose_list_ = node_handle.subscribe("/srecog/obj_pose_list", 10, &CObjListManager::ObjPoseListCallback, this);
   sub_obj_point_list_ = node_handle.subscribe("/srecog/obj_point_list", 10, &CObjListManager::ObjPointListCallback, this);
   ROS_INFO("Subscribe prepared!");
 
-  pub_marker_target_ = node_handle.advertise<visualization_msgs::Marker>("marker_target", 1);
-  pub_marker_target_pose_list_ = node_handle.advertise<visualization_msgs::Marker>("marker_target_pose_lsit_", 1);
+  pub_marker_target_point_ = node_handle.advertise<visualization_msgs::Marker>("target_point", 1);
 }
 
+#if 0
 void CObjListManager::CameraInfoCallback(const sensor_msgs::CameraInfoConstPtr& msg_cinfo) {
   if (rcv_cinfo) return;
   cam_model_.fromCameraInfo(msg_cinfo);
   rcv_cinfo = true;
 }
+#endif
 
 void CObjListManager::ObjPoseListCallback(const srecog_msgs::ObjPoseList& obj_pose_list) {
   if (obj_pose_list.obj_poses.empty()) {
@@ -64,6 +65,76 @@ void CObjListManager::ObjPoseListCallback(const srecog_msgs::ObjPoseList& obj_po
 
 void CObjListManager::ObjPointListCallback(const srecog_msgs::ObjPointList& obj_point_list) {
 
+  if (obj_point_list.obj_points.empty()) {
+    // 把持対象物が認識されていない場合は何もしない
+    return;
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(mtx_point_);
+
+    vect_target_obj_point_camera_.clear();
+    std::for_each(std::begin(obj_point_list.obj_points), std::end(obj_point_list.obj_points),
+        [&](srecog_msgs::ObjPoint point) {
+        CObjPoint op(point.class_name, obj_point_list.header, point.center, point.left, point.right);
+        vect_target_obj_point_camera_.push_back(op);
+        });
+  }
+
+  { // for debug
+    visualization_msgs::Marker marker;
+    marker.header = obj_point_list.header;
+    marker.ns = "basic_shapes";
+
+    marker.type = visualization_msgs::Marker::CUBE;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.lifetime = ros::Duration();
+
+    marker.pose.orientation.x = 0.0;
+    marker.pose.orientation.y = 0.0;
+    marker.pose.orientation.z = 0.0;
+    marker.pose.orientation.w = 1.0;
+
+    marker.scale.x = 0.01;
+    marker.scale.y = 0.01;
+    marker.scale.z = 0.01;
+    marker.color.r = 0.0f;
+    marker.color.g = 1.0f;
+    marker.color.b = 0.0f;
+    marker.color.a = 1.0f;
+
+    marker.id = 0;
+    marker.pose.position.x = obj_point_list.obj_points[0].center.x;
+    marker.pose.position.y = obj_point_list.obj_points[0].center.y;
+    marker.pose.position.z = obj_point_list.obj_points[0].center.z;
+    marker.color.r = 1.0f;
+    marker.color.g = 0.0f;
+    marker.color.b = 0.0f;
+    pub_marker_target_point_.publish(marker);
+
+    marker.id = 1;
+    marker.pose.position.x = obj_point_list.obj_points[0].left.x;
+    marker.pose.position.y = obj_point_list.obj_points[0].left.y;
+    marker.pose.position.z = obj_point_list.obj_points[0].left.z;
+    marker.color.r = 0.0f;
+    marker.color.g = 1.0f;
+    marker.color.b = 0.0f;
+    pub_marker_target_point_.publish(marker);
+
+    marker.id = 2;
+    marker.pose.position.x = obj_point_list.obj_points[0].right.x;
+    marker.pose.position.y = obj_point_list.obj_points[0].right.y;
+    marker.pose.position.z = obj_point_list.obj_points[0].right.z;
+    marker.color.r = 0.0f;
+    marker.color.g = 0.0f;
+    marker.color.b = 1.0f;
+    pub_marker_target_point_.publish(marker);
+  }
+
+}
+
+#if 0
+void ObjPointListCallback(const srecog_msgs::ObjPointList& obj_point_list) {
   if (!rcv_cinfo) {
     ROS_WARN("Not receive camera_info yet.");
     return;
@@ -102,7 +173,7 @@ void CObjListManager::ObjPointListCallback(const srecog_msgs::ObjPointList& obj_
     marker.color.g = 1.0f;
     marker.color.b = 0.0f;
     marker.color.a = 1.0f;
-    pub_marker_target_.publish(marker);
+    pub_marker_target_center_.publish(marker);
     //std::cout << "marker.pose = " << marker.pose << std::endl;
   }
 
@@ -134,4 +205,4 @@ void CObjListManager::ObjPointListCallback(const srecog_msgs::ObjPointList& obj_
   }
 
 }
-
+#endif

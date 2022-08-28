@@ -292,6 +292,8 @@ bool CApproach::DoApproachRotationTest() {
     return false;
   }
 
+// TODO
+#if 0
   // カメラフレームが狙ったゴール座標となるように、setPoseTargetに設定するlink_tcpの座標を算出する
   ps_camera_on_camera_frame.pose.position.x += tf_link_tcp_on_camera_frame.transform.translation.x;
   ps_camera_on_camera_frame.pose.position.y += tf_link_tcp_on_camera_frame.transform.translation.y;
@@ -300,6 +302,10 @@ bool CApproach::DoApproachRotationTest() {
   ps_camera_on_camera_frame.pose.orientation.y += tf_link_tcp_on_camera_frame.transform.rotation.y;
   ps_camera_on_camera_frame.pose.orientation.z += tf_link_tcp_on_camera_frame.transform.rotation.z;
   ps_camera_on_camera_frame.pose.orientation.w += tf_link_tcp_on_camera_frame.transform.rotation.w;
+#else
+  GetRPY(ps_camera_on_camera_frame.pose.orientation, roll, pitch, yaw);
+  GetQuaternionMsg(roll, pitch + M_PI/2.0, yaw, ps_camera_on_camera_frame.pose.orientation);
+#endif
 
 
   // カメラ座標系 -> ロボットを基準とした座標系に変換
