@@ -47,13 +47,16 @@
 
 class CGrasp {
   public:
+    enum class E_CTRL_TYPE
+    {
+      Position,
+      Velocity,
+    };
+
     explicit CGrasp(ros::NodeHandle& node_handle, CObjListManager& olm, CApproach& aprch);
-    bool PreGrasp();
-    bool PreGraspCartesian();
-    bool PreGraspVelocity();
+    bool PreGraspCartesian(E_CTRL_TYPE ctrl_type);
     bool Grasp();
-    bool PostGrasp();
-    bool PostGraspVelocity();
+    bool PostGraspCartesian(E_CTRL_TYPE ctrl_type);
     bool PickVelocity();
 
   private:

@@ -42,28 +42,14 @@ int main(int argc, char** argv)
   ros::Duration(10).sleep();
 
   CGrasp grasp(node_handle, olm, aprch);
-  grasp.PreGraspCartesian();
 
-#if 0
-  ros::Rate rate(10);
-  while (ros::ok()) {
-    rate.sleep();
-  }
-#endif
-
-#if 0
-  CGrasp grasp(node_handle, olm, aprch);
   if (velctl) {
     grasp.PickVelocity();
   } else {
-    grasp.PreGrasp();
-    //grasp.PreGraspVelocity();
-    //ros::Duration(5).sleep();
+    grasp.PreGraspCartesian(CGrasp::E_CTRL_TYPE::Position);
     grasp.Grasp();
-    grasp.PostGrasp();
-    //grasp.PostGraspVelocity();
+    grasp.PostGraspCartesian(CGrasp::E_CTRL_TYPE::Position);
   }
-#endif
 
   //spinner.stop();
   // Wait until the node is shut down
