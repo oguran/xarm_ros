@@ -43,7 +43,6 @@
         </visual>
       </link>
     </model>
-    -->
 
     <model name="056_tennis_ball">
       <pose>0.1 -0.94 1.015  0 0 0</pose>
@@ -80,16 +79,55 @@
         </visual>
       </link>
     </model>
+    -->
 
     <model name="010_potted_meat_can">
       <pose>-0.1 -0.80 1.015  0 0 0</pose>
-      <static>true</static>
+      <static>false</static>
       <link name="body">
         <visual name="visual">
+          <pose>0.035 0.0225 0.0 0 0 0</pose>
           <geometry>
             <mesh><uri>file:///home/myubuntu16/catkin_ws/src/xarm_ros/xarm_gazebo/worlds/ycb_obj/010_potted_meat_can/google_16k/textured.dae</uri></mesh>
           </geometry>
         </visual>
+      <collision name="collision">
+        <pose>0.035 0.0225 0.0 0 0 0</pose>
+        <geometry>
+          <mesh><uri>file:///home/myubuntu16/catkin_ws/src/xarm_ros/xarm_gazebo/worlds/ycb_obj/010_potted_meat_can/google_16k/textured.dae</uri></mesh>
+        </geometry>
+        <!--
+        <surface>
+          <friction>
+            <ode>
+              <mu>10.0</mu>
+              <mu2>10.0</mu2>
+            </ode>
+          </friction>
+          <contact>
+            <ode>
+              <kp>100000</kp>
+              <kd>100</kd>
+              <max_vel>10.0</max_vel>
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
+        </surface>
+        -->
+      </collision>
+      <!--collision
+      <inertial>
+        <mass>0.10</mass>
+        <inertia>
+          <ixx>0.00007</ixx>
+          <iyy>0.00010</iyy>
+          <izz>0.00006</izz>
+          <ixy>0.0</ixy>
+          <ixz>0.0</ixz>
+          <iyz>0.0</iyz>
+        </inertia>
+      </inertial>
+      -->
       </link>
     </model>
 
