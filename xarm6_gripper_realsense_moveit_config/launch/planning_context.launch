@@ -9,7 +9,8 @@
   <param if="$(arg load_robot_description)" name="$(arg robot_description)" command="xacro --inorder  '$(find xarm_description)/urdf/xarm6_with_gripper_realsense.xacro' limited:=true use_nominal_extrinsics:=true add_plug:=true use_mesh:=true"/>
 
   <!-- The semantic description that corresponds to the URDF -->
-  <param name="$(arg robot_description)_semantic" textfile="$(find xarm6_gripper_realsense_moveit_config)/config/xarm6_with_gripper.srdf" />
+  <!-- <param name="$(arg robot_description)_semantic" textfile="$(find xarm6_gripper_realsense_moveit_config)/config/xarm6_with_gripper.srdf" /> -->
+  <param name="$(arg robot_description)_semantic" textfile="$(find xarm6_gripper_realsense_moveit_config)/config/xarm6_with_gripper_realsense.srdf" />
 
   <!-- Load updated joint limits (override information from URDF) -->
   <group ns="$(arg robot_description)_planning">
