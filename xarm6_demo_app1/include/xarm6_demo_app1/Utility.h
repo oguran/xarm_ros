@@ -119,8 +119,7 @@ inline bool SwitchController(ros::NodeHandle &node_handle,
 }
 
 inline void copyPose(const geometry_msgs::Pose &src, geometry_msgs::Pose &dst) {
-  dst.position = src.position;
-  dst.orientation = src.orientation;
+  dst = src;
 }
 
 inline void printPose(std::string const& msg, const geometry_msgs::Pose &pose) {
@@ -136,11 +135,17 @@ inline void printPose(std::string const& msg, const geometry_msgs::Pose &pose) {
       );
 }
 
+/**
+ * オイラー角のログ表示
+ */
 inline void printEuler(std::string const& msg, float roll, float pitch, float yaw) {
   ROS_INFO("%s roll, pitch, yaw  = %f, %f, %f", msg.c_str(), (float)roll, (float)pitch, (float)yaw);
 }
 
 
+/**
+ * 指定された順番でオイラー角の各軸を回転させた時の回転行列を演算
+ */
 inline RotationMatrix calculateRotationMatrix(const EulerAngle e) {
   auto x = RotationMatrix::rotationX(e.x);
   auto y = RotationMatrix::rotationY(e.y);
@@ -162,6 +167,9 @@ inline RotationMatrix calculateRotationMatrix(const EulerAngle e) {
   throw "order of euler angle does not matched.";
 }
 
+/**
+ *  オイラー角 -> クウォータニオン変換
+ */
 inline xarm6_demo_app1::Quaternion calculateQuaternion(const EulerAngle e) {
   auto x = xarm6_demo_app1::Quaternion::rotationX(e.x);
   auto y = xarm6_demo_app1::Quaternion::rotationY(e.y);

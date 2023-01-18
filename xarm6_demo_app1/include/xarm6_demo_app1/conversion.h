@@ -309,4 +309,21 @@ inline RotationMatrix toRotationMatrix(xarm6_demo_app1::Quaternion q) {
   });
 }
 
+inline Eigen::Affine3d toAffine(const Eigen::Isometry3d& pose)
+{
+  Eigen::Affine3d p(pose.rotation());
+  p.translation() = pose.translation();
+
+  return p;
+}
+
+inline Eigen::Isometry3d toAffine(const Eigen::Affine3d& pose)
+{
+  Eigen::Isometry3d p;
+  p.translation() = pose.translation();
+  p.linear() = pose.rotation();
+
+  return p;
+}
+
 #endif // __CONVERSION_H__

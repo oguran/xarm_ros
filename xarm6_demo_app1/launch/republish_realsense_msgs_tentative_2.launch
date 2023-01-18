@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+  <node name="image_republish_11" pkg="image_transport" type="republish" args="compressedDepth raw">
+    <remap from="in" to="/camera/ctrl/depth/image_rect_raw" />
+    <remap from="out" to="/camera/depth/image_rect_raw" />
+  </node>
+</launch>
