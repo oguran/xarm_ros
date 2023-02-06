@@ -46,6 +46,7 @@ class CApproach {
     const std::string COGNITION_POSE = "cognition_pose";
     const std::string NAMED_POSE_HOME = "home";
     const unsigned int AVERAGE_SAMPLING_RATE = 5U;
+    const int AVERAGE_SAMPLING_SIZE = 10;
 
     actionlib::SimpleActionClient<control_msgs::GripperCommandAction> gripper_;
     ros::Publisher pub_marker_target_1st_;

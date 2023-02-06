@@ -48,7 +48,10 @@ class CObjListManager {
   public:
     explicit CObjListManager(ros::NodeHandle& node_handle);
 
-    //void CameraInfoCallback(const sensor_msgs::CameraInfoConstPtr& msg_cinfo);
+    void enablePublishTargetTF();
+    void disablePublishTargetTF();
+
+    void CameraInfoCallback(const sensor_msgs::CameraInfoConstPtr& msg_cinfo);
     void ObjPoseListCallback(const srecog_msgs::ObjPoseList& obj_pose_list);
     void ObjPointListCallback(const srecog_msgs::ObjPointList& obj_point_list);
 
@@ -80,14 +83,16 @@ class CObjListManager {
 
     // for debug
     ros::Publisher pub_marker_target_point_;
-    //image_geometry::PinholeCameraModel cam_model_;
-    //ros::Subscriber sub_cinfo_;
+    image_geometry::PinholeCameraModel cam_model_;
+    ros::Subscriber sub_cinfo_;
 
     // TODO need to delete
     geometry_msgs::Pose target_pose_;
 
   private:
-    //bool rcv_cinfo = false;
+    bool rcv_cinfo_ = false;
+    bool enable_publish_target_tf = false;
+    std::mutex mtx_enable_;
 
 };
 

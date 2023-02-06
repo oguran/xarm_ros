@@ -117,10 +117,13 @@ bool CApproach::MoveToCognitionPose(bool plan_confirm) {
 bool CApproach::ObjPoseCognition() {
   geometry_msgs::PoseStamped target_obj_pose_camera;
 
+  olm.enablePublishTargetTF();
+  ros::Duration(1).sleep();
+
   // Moving Average Filter of Target Pose
   geometry_msgs::Pose pose;
   ros::Rate rate(AVERAGE_SAMPLING_RATE);
-  int cnt = 30;
+  int cnt = AVERAGE_SAMPLING_SIZE;
   CMovingAveragePose MAPose(cnt);
   while (ros::ok() && cnt--) {
     {
@@ -148,6 +151,8 @@ bool CApproach::ObjPoseCognition() {
     ROS_WARN("%s", ex.what());
     return false;
   }
+
+  olm.disablePublishTargetTF();
 
   return true;
 }
@@ -222,10 +227,13 @@ bool CApproach::DoApproachRotation(bool plan_confirm) {
   ROS_INFO("Rotation");
   geometry_msgs::PoseStamped target_obj_pose_camera;
 
+  olm.enablePublishTargetTF();
+  ros::Duration(1).sleep();
+
   // Moving Average Filter of Target Pose
   geometry_msgs::Pose pose;
   ros::Rate rate(AVERAGE_SAMPLING_RATE);
-  int cnt = 30;
+  int cnt = AVERAGE_SAMPLING_SIZE;
   CMovingAveragePose MAPose(cnt);
   while (ros::ok() && cnt--) {
     {
@@ -237,6 +245,8 @@ bool CApproach::DoApproachRotation(bool plan_confirm) {
     MAPose.averagedPose(pose, target_obj_pose_camera.pose);
     rate.sleep();
   }
+
+  olm.disablePublishTargetTF();
 
   // カメラ座標系 -> ロボット基準座標系に変換
   if (!olm.tfBuffer_.canTransform(robot_base_frame_, target_obj_pose_camera.header.frame_id, ros::Time(0), ros::Duration(10.0))) {
@@ -254,27 +264,6 @@ bool CApproach::DoApproachRotation(bool plan_confirm) {
     return false;
   }
 
-// FIXME 本来はCObjListManagerで行いたいが、srecogが不正なデータを投げてくる場合があるので、暫定的にここで行う
-  // 把持対象物のTFを作成＆broadcastする
-  {
-    geometry_msgs::TransformStamped tfs;
-
-    tfs.header = target_pose_.header;
-    tfs.child_frame_id = TARGET_FRAME;
-    tfs.transform.translation.x = target_pose_.pose.position.x;
-    tfs.transform.translation.y = target_pose_.pose.position.y;
-    tfs.transform.translation.z = target_pose_.pose.position.z;
-    tfs.transform.rotation.x = target_pose_.pose.orientation.x;
-    tfs.transform.rotation.y = target_pose_.pose.orientation.y;
-    tfs.transform.rotation.z = target_pose_.pose.orientation.z;
-    tfs.transform.rotation.w = target_pose_.pose.orientation.w;;
-
-    tf_bc_.sendTransform(tfs);
-  }
-
-  // tfを投げてから反映されるまで少し待つ（いらないかも）
-  ros::Duration(1).sleep();
-
   // targetを基準座標としたカメラフレームの座標を取得する
   geometry_msgs::TransformStamped tf_camera_on_target_cordinate;
   try{
@@ -288,11 +277,6 @@ bool CApproach::DoApproachRotation(bool plan_confirm) {
     ros::Duration(1.0).sleep();
     return false;
   }
-
-#if 0 // for debug
-  tf_camera_on_target_cordinate.child_frame_id = tf_camera_on_target_cordinate.child_frame_id + "_based_on_target";
-  tf_bc_.sendTransform(tf_camera_on_target_cordinate);
-#endif
 
   double roll = 0.0, pitch = 0.0, yaw = 0.0;
   GetRPY(target_obj_pose_camera.pose.orientation, roll, pitch, yaw);
@@ -329,11 +313,7 @@ bool CApproach::DoApproachRotation(bool plan_confirm) {
   tfs.transform.rotation.z = q_rotated.z;
   tfs.transform.rotation.w = q_rotated.w;
 
-#if 0 // for debug
-  tf_bc_.sendTransform(tfs);
-#endif
-
-  geometry_msgs::PoseStamped ps_camera_on_target_cordinate, ps_camera_on_fixed_frame, goal_on_fixed_frame;
+  geometry_msgs::PoseStamped ps_camera_on_target_cordinate, ps_camera_on_fixed_frame;
   transformTFStampedToPoseStamped(tfs, ps_camera_on_target_cordinate);
 
   // 把持対象物座標系 -> ロボット座標系 に変換
@@ -383,8 +363,9 @@ bool CApproach::DoApproachRotation(bool plan_confirm) {
   ROS_INFO("MoveToPreGrasp1 plan (pose goal) %s", success ? "" : "FAILED");
 
   ROS_INFO("MoveToPreGrasp1 plan as trajectory line");
-  visual_tools.publishAxisLabeled(ps_camera_on_fixed_frame.pose, "ps_camera_on_fixed_frame");
-  visual_tools.publishText(text_pose, "Moving to pregrasp pose.", rvt::WHITE, rvt::XLARGE);
+  visual_tools.deleteAllMarkers();
+  visual_tools.publishAxisLabeled(ps_camera_on_fixed_frame.pose, "pregrasp_1st_step_pose");
+  visual_tools.publishText(text_pose, "Moving to 1st pregrasp pose.", rvt::WHITE, rvt::XLARGE);
   visual_tools.publishTrajectoryLine(plan.trajectory_, joint_model_group);
   visual_tools.trigger();
   visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to move to pregrasp pose.");
@@ -393,6 +374,7 @@ bool CApproach::DoApproachRotation(bool plan_confirm) {
     ROS_WARN("Could not change pose to pregrasp1");
     return false;
   }
+  visual_tools.deleteAllMarkers();
 
   geometry_msgs::TransformStamped tf_link_tcp_on_fixed_frame, tf_camera_frame_on_fixed_frame;
   try { // ロボットフレームを基準としたlink_tcpの相対座標を取得
@@ -421,33 +403,22 @@ bool CApproach::DoApproachRotation(bool plan_confirm) {
 
   arm_.setPoseTarget(ps_camera_on_fixed_frame);
 
-#if 1 // for debug
-  geometry_msgs::TransformStamped tfs2;
-
-  tfs2.header = ps_camera_on_fixed_frame.header;
-  tfs2.child_frame_id = ps_camera_on_fixed_frame.header.frame_id + "_PreGrasp";
-  tfs2.transform.translation.x = ps_camera_on_fixed_frame.pose.position.x;
-  tfs2.transform.translation.y = ps_camera_on_fixed_frame.pose.position.y;
-  tfs2.transform.translation.z = ps_camera_on_fixed_frame.pose.position.z;
-  tfs2.transform.rotation.x = ps_camera_on_fixed_frame.pose.orientation.x;
-  tfs2.transform.rotation.y = ps_camera_on_fixed_frame.pose.orientation.y;
-  tfs2.transform.rotation.z = ps_camera_on_fixed_frame.pose.orientation.z;
-  tfs2.transform.rotation.w = ps_camera_on_fixed_frame.pose.orientation.w;
-
-  tfs2.header.stamp = ros::Time::now();
-  tf_bc_.sendTransform(tfs2);
-
-#endif
-
   moveit::planning_interface::MoveGroupInterface::Plan plan2;
   success = (arm_.plan(plan2) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
   ROS_INFO("MoveToPreGrasp2 plan (pose goal) %s", success ? "" : "FAILED");
+
+  ROS_INFO("MoveToPreGrasp2 plan as trajectory line");
+  visual_tools.deleteAllMarkers();
+  visual_tools.publishAxisLabeled(ps_camera_on_fixed_frame.pose, "ps_camera_on_fixed_framepregrasp_2nd_step_pose");
+  visual_tools.publishText(text_pose, "Moving to 2nd pregrasp pose.", rvt::WHITE, rvt::XLARGE);
+  visual_tools.publishTrajectoryLine(plan2.trajectory_, joint_model_group);
 
   if (!arm_.execute(plan2)) {
     ROS_WARN("Could not change pose to pregrasp2");
     return false;
   }
 
+  visual_tools.deleteAllMarkers();
   return true;
 }
 

@@ -55,11 +55,7 @@ int main(int argc, char** argv)
 
   aprch.DoApproach(plan_confirm);
 
-  ros::Duration(5).sleep();
-
   aprch.DoApproachRotation(plan_confirm);
-
-  ros::Duration(5).sleep();
 
   CGrasp grasp(node_handle, olm, aprch);
 
