@@ -70,6 +70,7 @@
     </group_state>
     <!--END EFFECTOR: Purpose: Represent information about an end effector.-->
     <end_effector name="xarm_gripper" parent_link="link_tcp" group="xarm_gripper" />
+    <!--<end_effector name="xarm_gripper" parent_link="link_tcp" group="xarm_gripper" parent_group="xarm6" />-->
     <!--<end_effector name="xarm_camera" parent_link="camera_depth_optical_joint" group="xarm_camera" />
     <!--PASSIVE JOINT: Purpose: this element is used to mark joints that are not actuated-->-->
     <passive_joint name="left_finger_joint" />

@@ -177,6 +177,8 @@ add_executable(${PROJECT_NAME}_node
   src/CMotionPlanningAPITest.cpp
   src/CMotionPlanningPipelineTest.cpp
   src/CVisualizingCollisionsTest.cpp
+  src/CPickAndPlaceTest.cpp
+  src/CCylinderSegment.cpp
   )
 
 ## Rename C++ executable without prefix

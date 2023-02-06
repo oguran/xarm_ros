@@ -9,6 +9,8 @@
 #include <xarm6_demo_app1/CMotionPlanningAPITest.h>
 #include <xarm6_demo_app1/CMotionPlanningPipelineTest.h>
 #include <xarm6_demo_app1/CVisualizingCollisionsTest.h>
+#include <xarm6_demo_app1/CPickAndPlaceTest.h>
+#include <xarm6_demo_app1/CCylinderSegment.h>
 
 extern void timer_callback(const ros::TimerEvent& e);
 
@@ -37,26 +39,27 @@ int main(int argc, char** argv)
   robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
   robot_model::RobotModelPtr kinematic_model =  robot_model_loader.getModel();
   std::string robot_model_frame = kinematic_model->getModelFrame();
+  // Erase from '/' from strings of model frame
+  robot_model_frame.erase(std::remove(robot_model_frame.begin(), robot_model_frame.end(), '/'), robot_model_frame.end());
   ROS_INFO("Model frame: %s", robot_model_frame.c_str());
 
   CObjListManager olm(node_handle);
 
-#if 0
+#if 1 // Demo Code
+
   CApproach aprch(node_handle, olm, robot_model_frame, PLANNING_GROUP);
   aprch.MoveToHomePose(plan_confirm);
   aprch.MoveToCognitionPose(plan_confirm);
-
-  ros::Duration(10).sleep();
 
   aprch.ObjPoseCognition();
 
   aprch.DoApproach(plan_confirm);
 
-  ros::Duration(10).sleep();
+  ros::Duration(5).sleep();
 
   aprch.DoApproachRotation(plan_confirm);
 
-  ros::Duration(10).sleep();
+  ros::Duration(5).sleep();
 
   CGrasp grasp(node_handle, olm, aprch);
 
@@ -104,10 +107,21 @@ int main(int argc, char** argv)
   mpptest.Test();
 #endif
 
-#if 1 // Visualizing Collisions Test
+#if 0 // Visualizing Collisions Test
   CVisualizingCollisionsTest vctest(node_handle, robot_model_frame, PLANNING_GROUP);
   vctest.Test();
 #endif
+
+#if 0 // Pick and place Test
+  CPickAndPlaceTest pnptest(robot_model_frame, PLANNING_GROUP);
+  pnptest.Test();
+#endif
+
+#if 0 // Pick and place Test
+  // Start the segmentor
+  CCylinderSegment ccstest(node_handle);
+#endif
+
 #endif
 
   //spinner.stop();

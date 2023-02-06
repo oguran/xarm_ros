@@ -37,7 +37,7 @@ class CApproach {
     geometry_msgs::PoseStamped approached_link_eef_pose_;
     geometry_msgs::PoseStamped approached_link_tcp_pose_;
     geometry_msgs::PoseStamped grasp_pose_[3]; // 0:pre-grasp, 1:grasp, 2:post-grasp
-    geometry_msgs::PoseStamped target_pose_1st_;
+    geometry_msgs::PoseStamped target_pose_;
 
     moveit::planning_interface::MoveGroupInterface arm_;
 
@@ -45,6 +45,7 @@ class CApproach {
     const std::string TARGET_FRAME = "target";
     const std::string COGNITION_POSE = "cognition_pose";
     const std::string NAMED_POSE_HOME = "home";
+    const unsigned int AVERAGE_SAMPLING_RATE = 5U;
 
     actionlib::SimpleActionClient<control_msgs::GripperCommandAction> gripper_;
     ros::Publisher pub_marker_target_1st_;
@@ -61,6 +62,7 @@ class CApproach {
     CObjListManager& olm;
 
     std::string robot_base_frame_;
+    robot_model_loader::RobotModelLoader robot_model_loader_;
 };
 
 #endif // XARM6_DEMO_APP1_CAPPROACH_H

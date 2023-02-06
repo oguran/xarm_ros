@@ -42,12 +42,13 @@
 #include <visualization_msgs/Marker.h>
 #include <depth_image_proc/depth_traits.h>
 
-class MovingAveragePose {
+class CMovingAveragePose {
   public:
-    explicit MovingAveragePose (unsigned char num);
+    explicit CMovingAveragePose (unsigned char num);
     void averagedPose(geometry_msgs::Pose &pose, geometry_msgs::Pose &avePose);
   private:
-    std::unique_ptr<std::list<geometry_msgs::Pose>> listPose;
+    std::unique_ptr<std::list<geometry_msgs::Pose>> listPose_;
+    unsigned int denomitator_ = 0;
 };
 
 #endif // endifXARM6_DEMO_APP1_CMOVINGAVERAGEPOSE_H

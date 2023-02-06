@@ -139,12 +139,69 @@
 
     <scene>
       <!-- Set blightness of world -->
-      <!-- <ambient>0.7 0.7 0.7 1</ambient>-->
-      <!-- Set color of background -->
-      <!--<background>0.1 0.1 0.1 1</background>-->
+      <ambient>0.4 0.4 0.4 1</ambient>
+      <!-- Set color of background(sky) -->
+      <background>0.7 0.7 0.7 1</background>
     </scene>
 
-    <physics type="ode" update_rate="100.0">
+    <light name='spot_light_0' type='spot'>
+      <pose frame=''>-0.8 -0.2 1.4 0.0 -0.9 0.0</pose>
+      <diffuse>0.2 0.2 0.2 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>20</range>
+        <constant>0.5</constant>
+        <linear>0.01</linear>
+        <quadratic>0.0</quadratic>
+      </attenuation>
+      <cast_shadows>0</cast_shadows>
+      <direction>0 0 -1</direction>
+    </light>
+
+    <light name='spot_light_1' type='spot'>
+      <pose frame=''>0.8 -0.2 1.4 0.0 0.9 0.0</pose>
+      <diffuse>0.2 0.2 0.2 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>20</range>
+        <constant>0.5</constant>
+        <linear>0.01</linear>
+        <quadratic>0.0</quadratic>
+      </attenuation>
+      <cast_shadows>0</cast_shadows>
+      <direction>0 0 -1</direction>
+    </light>
+
+    <light name='spot_light_2' type='spot'>
+      <pose frame=''>0.0 0.4 1.4 -0.9 0.0 0.0</pose>
+      <diffuse>0.2 0.2 0.2 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>20</range>
+        <constant>0.5</constant>
+        <linear>0.01</linear>
+        <quadratic>0.0</quadratic>
+      </attenuation>
+      <cast_shadows>0</cast_shadows>
+      <direction>0 0 -1</direction>
+    </light>
+
+    <light name='spot_light_3' type='spot'>
+      <pose frame=''>0.0 -0.8 1.4 0.9 0.0 0.0</pose>
+      <diffuse>0.2 0.2 0.2 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>20</range>
+        <constant>0.5</constant>
+        <linear>0.01</linear>
+        <quadratic>0.0</quadratic>
+      </attenuation>
+      <cast_shadows>0</cast_shadows>
+      <direction>0 0 -1</direction>
+    </light>
+
+
+    <physics type="ode">
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1</real_time_factor>
       <real_time_update_rate>1000</real_time_update_rate>

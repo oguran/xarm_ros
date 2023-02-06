@@ -1,16 +1,17 @@
 #include <xarm6_demo_app1/CMovingAveragePose.h>
 
-MovingAveragePose::MovingAveragePose (unsigned char num) {
+CMovingAveragePose::CMovingAveragePose (unsigned char num) {
     // TODO use make_unique
-    listPose = std::unique_ptr<std::list<geometry_msgs::Pose>>(new std::list<geometry_msgs::Pose>(num));
+    listPose_ = std::unique_ptr<std::list<geometry_msgs::Pose>>(new std::list<geometry_msgs::Pose>());
+    denomitator_ = num;
 }
 
-void MovingAveragePose::averagedPose(geometry_msgs::Pose &pose, geometry_msgs::Pose &avePose) {
-    if (listPose->size() < listPose->max_size()) {
-        listPose->push_back(pose);
+void CMovingAveragePose::averagedPose(geometry_msgs::Pose &pose, geometry_msgs::Pose &avePose) {
+    if (listPose_->size() < denomitator_) {
+        listPose_->push_back(pose);
     } else {
-        listPose->pop_front();
-        listPose->push_back(pose);
+        listPose_->pop_front();
+        listPose_->push_back(pose);
     }
     avePose.position.x = 0.0;
     avePose.position.y = 0.0;
@@ -19,25 +20,25 @@ void MovingAveragePose::averagedPose(geometry_msgs::Pose &pose, geometry_msgs::P
     avePose.orientation.y = 0.0;
     avePose.orientation.z = 0.0;
     avePose.orientation.w = 0.0;
-    for (auto pose : *listPose.get()) {
-        avePose.position.x += pose.position.x;
-        avePose.position.y += pose.position.y;
-        avePose.position.z += pose.position.z;
-#if 0
-        avePose.orientation.x += pose.orientation.x;
-        avePose.orientation.y += pose.orientation.y;
-        avePose.orientation.z += pose.orientation.z;
-        avePose.orientation.w += pose.orientation.w;
+    for (auto p : *listPose_.get()) {
+        avePose.position.x += p.position.x;
+        avePose.position.y += p.position.y;
+        avePose.position.z += p.position.z;
+#if 1
+        avePose.orientation.x += p.orientation.x;
+        avePose.orientation.y += p.orientation.y;
+        avePose.orientation.z += p.orientation.z;
+        avePose.orientation.w += p.orientation.w;
 #endif
     }
-    avePose.position.x = avePose.position.x / (double)listPose->size();
-    avePose.position.y = avePose.position.y / (double)listPose->size();
-    avePose.position.z = avePose.position.z / (double)listPose->size();
-#if 0
-    avePose.orientation.x = avePose.orientation.x / (double)listPose->size();
-    avePose.orientation.y = avePose.orientation.y / (double)listPose->size();
-    avePose.orientation.z = avePose.orientation.z / (double)listPose->size();
-    avePose.orientation.w = avePose.orientation.w / (double)listPose->size();
+    avePose.position.x = avePose.position.x / (double)listPose_->size();
+    avePose.position.y = avePose.position.y / (double)listPose_->size();
+    avePose.position.z = avePose.position.z / (double)listPose_->size();
+#if 1
+    avePose.orientation.x = avePose.orientation.x / (double)listPose_->size();
+    avePose.orientation.y = avePose.orientation.y / (double)listPose_->size();
+    avePose.orientation.z = avePose.orientation.z / (double)listPose_->size();
+    avePose.orientation.w = avePose.orientation.w / (double)listPose_->size();
 #else
     avePose.orientation.x = pose.orientation.x;
     avePose.orientation.y = pose.orientation.y;
