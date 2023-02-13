@@ -39,13 +39,15 @@ bool CApproach::MoveToHomePose(bool plan_confirm) {
   bool success = (arm_.plan(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
   ROS_INFO("MoveToHomePose plan (pose goal) %s", success ? "" : "FAILED");
 
-  ROS_INFO("MoveToHomePose plan as trajectory line");
-  visual_tools.deleteAllMarkers();
-  visual_tools.publishAxisLabeled(cognition_pose_.pose, "cognition_pose");
-  visual_tools.publishText(text_pose, "Moving to home pose.", rvt::WHITE, rvt::XLARGE);
-  visual_tools.publishTrajectoryLine(plan.trajectory_, joint_model_group);
-  visual_tools.trigger();
-  visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to move to home pose.");
+  if (plan_confirm) {
+    ROS_INFO("MoveToHomePose plan as trajectory line");
+    visual_tools.deleteAllMarkers();
+    visual_tools.publishAxisLabeled(cognition_pose_.pose, "cognition_pose");
+    visual_tools.publishText(text_pose, "Moving to home pose.", rvt::WHITE, rvt::XLARGE);
+    visual_tools.publishTrajectoryLine(plan.trajectory_, joint_model_group);
+    visual_tools.trigger();
+    visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to move to home pose.");
+  }
 
   if (!arm_.execute(plan)) {
     ROS_WARN("Could not move to home pose");
@@ -62,23 +64,24 @@ bool CApproach::MoveToHomePose(bool plan_confirm) {
 }
 
 bool CApproach::MoveToCognitionPose(bool plan_confirm) {
-    ROS_INFO("Moving to cognition pose");
-    cognition_pose_.header.frame_id = robot_base_frame_;
-    cognition_pose_.pose.position.x = 0.354;
-    cognition_pose_.pose.position.y = 0.037;
-    cognition_pose_.pose.position.z = 0.505;
+  ROS_INFO("Moving to cognition pose");
+  cognition_pose_.header.frame_id = robot_base_frame_;
+  cognition_pose_.pose.position.x = 0.354;
+  cognition_pose_.pose.position.y = 0.037;
+  cognition_pose_.pose.position.z = 0.505;
 
-    cognition_pose_.pose.orientation.x = 1.0;
-    cognition_pose_.pose.orientation.y = 0.0;
-    cognition_pose_.pose.orientation.z = 0.0;
-    cognition_pose_.pose.orientation.w = 0.0;
+  cognition_pose_.pose.orientation.x = 1.0;
+  cognition_pose_.pose.orientation.y = 0.0;
+  cognition_pose_.pose.orientation.z = 0.0;
+  cognition_pose_.pose.orientation.w = 0.0;
 
-    arm_.setPoseTarget(cognition_pose_);
+  arm_.setPoseTarget(cognition_pose_);
 
-    moveit::planning_interface::MoveGroupInterface::Plan plan;
-    bool success = (arm_.plan(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-    ROS_INFO("MoveToCognitionPose plan (pose goal) %s", success ? "" : "FAILED");
+  moveit::planning_interface::MoveGroupInterface::Plan plan;
+  bool success = (arm_.plan(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+  ROS_INFO("MoveToCognitionPose plan (pose goal) %s", success ? "" : "FAILED");
 
+  if (plan_confirm) {
     ROS_INFO("MoveToCognitionPose plan as trajectory line");
     visual_tools.deleteAllMarkers();
     visual_tools.publishAxisLabeled(cognition_pose_.pose, "cognition_pose");
@@ -86,32 +89,36 @@ bool CApproach::MoveToCognitionPose(bool plan_confirm) {
     visual_tools.publishTrajectoryLine(plan.trajectory_, joint_model_group);
     visual_tools.trigger();
     visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to move to cognition pose.");
+  }
 
-   //if (!arm_.move()) {
-    if (!arm_.execute(plan)) {
-        ROS_WARN("Could not move to cognition pose");
-        return false;
-    }
+  //if (!arm_.move()) {
+  if (!arm_.execute(plan)) {
+    ROS_WARN("Could not move to cognition pose");
+    return false;
+  }
 
-    // cognition poseを記憶しておく
-    arm_.rememberJointValues(COGNITION_POSE);
+  // cognition poseを記憶しておく
+  arm_.rememberJointValues(COGNITION_POSE);
+
+  if (plan_confirm) {
     visual_tools.deleteAllMarkers();
     visual_tools.trigger();
     visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window if cognition was finished.");
+  }
 
 
-    ROS_INFO("Initialized pose gripper");
-    control_msgs::GripperCommandActionGoal goal;
-    goal.goal.command.position = 0.3;
-    gripper_.sendGoal(goal.goal);
-    bool finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(3));
-    if (!finishedBeforeTimeout) {
-        ROS_WARN("gripper_ open action did not complete");
-        //return false;
-    }
-    ROS_INFO("Initialize gripper pose");
+  ROS_INFO("Initialized pose gripper");
+  control_msgs::GripperCommandActionGoal goal;
+  goal.goal.command.position = 0.3;
+  gripper_.sendGoal(goal.goal);
+  bool finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(3));
+  if (!finishedBeforeTimeout) {
+    ROS_WARN("gripper_ open action did not complete");
+    //return false;
+  }
+  ROS_INFO("Initialize gripper pose");
 
-    return true;
+  return true;
 }
 
 bool CApproach::ObjPoseCognition() {
@@ -185,13 +192,15 @@ bool CApproach::DoApproach(bool plan_confirm) {
   bool success = (arm_.plan(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
   ROS_INFO("MoveToHomePose plan (pose goal) %s", success ? "" : "FAILED");
 
-  ROS_INFO("MoveToHomePose plan as trajectory line");
-  visual_tools.deleteAllMarkers();
-  visual_tools.publishAxisLabeled(approached_link_eef_pose_.pose, "approached_link_eef_pose_");
-  visual_tools.publishText(text_pose, "Moving to approached pose.", rvt::WHITE, rvt::XLARGE);
-  visual_tools.publishTrajectoryLine(plan.trajectory_, joint_model_group);
-  visual_tools.trigger();
-  visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to move to approached pose.");
+  if (plan_confirm) {
+    ROS_INFO("MoveToHomePose plan as trajectory line");
+    visual_tools.deleteAllMarkers();
+    visual_tools.publishAxisLabeled(approached_link_eef_pose_.pose, "approached_link_eef_pose_");
+    visual_tools.publishText(text_pose, "Moving to approached pose.", rvt::WHITE, rvt::XLARGE);
+    visual_tools.publishTrajectoryLine(plan.trajectory_, joint_model_group);
+    visual_tools.trigger();
+    visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to move to approached pose.");
+  }
 
   if (!arm_.execute(plan)) {
     ROS_WARN("Could not approaching");
@@ -354,21 +363,21 @@ bool CApproach::DoApproachRotation(bool plan_confirm) {
   GetRPY(ps_camera_on_fixed_frame.pose.orientation, roll, pitch, yaw);
   GetQuaternionMsg(roll, pitch, yaw, ps_camera_on_fixed_frame.pose.orientation);
 
-  ROS_INFO_STREAM("ps_camera_on_fixed_frame.pose ; " << ps_camera_on_fixed_frame.pose);
-
   arm_.setPoseTarget(ps_camera_on_fixed_frame);
 
   moveit::planning_interface::MoveGroupInterface::Plan plan;
   bool success = (arm_.plan(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
   ROS_INFO("MoveToPreGrasp1 plan (pose goal) %s", success ? "" : "FAILED");
 
-  ROS_INFO("MoveToPreGrasp1 plan as trajectory line");
-  visual_tools.deleteAllMarkers();
-  visual_tools.publishAxisLabeled(ps_camera_on_fixed_frame.pose, "pregrasp_1st_step_pose");
-  visual_tools.publishText(text_pose, "Moving to 1st pregrasp pose.", rvt::WHITE, rvt::XLARGE);
-  visual_tools.publishTrajectoryLine(plan.trajectory_, joint_model_group);
-  visual_tools.trigger();
-  visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to move to pregrasp pose.");
+  if (plan_confirm) {
+    ROS_INFO("MoveToPreGrasp1 plan as trajectory line");
+    visual_tools.deleteAllMarkers();
+    visual_tools.publishAxisLabeled(ps_camera_on_fixed_frame.pose, "pregrasp_1st_step_pose");
+    visual_tools.publishText(text_pose, "Moving to 1st pregrasp pose.", rvt::WHITE, rvt::XLARGE);
+    visual_tools.publishTrajectoryLine(plan.trajectory_, joint_model_group);
+    visual_tools.trigger();
+    visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to move to pregrasp pose.");
+  }
 
   if (!arm_.execute(plan)) {
     ROS_WARN("Could not change pose to pregrasp1");
@@ -407,11 +416,13 @@ bool CApproach::DoApproachRotation(bool plan_confirm) {
   success = (arm_.plan(plan2) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
   ROS_INFO("MoveToPreGrasp2 plan (pose goal) %s", success ? "" : "FAILED");
 
-  ROS_INFO("MoveToPreGrasp2 plan as trajectory line");
-  visual_tools.deleteAllMarkers();
-  visual_tools.publishAxisLabeled(ps_camera_on_fixed_frame.pose, "ps_camera_on_fixed_framepregrasp_2nd_step_pose");
-  visual_tools.publishText(text_pose, "Moving to 2nd pregrasp pose.", rvt::WHITE, rvt::XLARGE);
-  visual_tools.publishTrajectoryLine(plan2.trajectory_, joint_model_group);
+  if (plan_confirm) {
+    ROS_INFO("MoveToPreGrasp2 plan as trajectory line");
+    visual_tools.deleteAllMarkers();
+    visual_tools.publishAxisLabeled(ps_camera_on_fixed_frame.pose, "ps_camera_on_fixed_framepregrasp_2nd_step_pose");
+    visual_tools.publishText(text_pose, "Moving to 2nd pregrasp pose.", rvt::WHITE, rvt::XLARGE);
+    visual_tools.publishTrajectoryLine(plan2.trajectory_, joint_model_group);
+  }
 
   if (!arm_.execute(plan2)) {
     ROS_WARN("Could not change pose to pregrasp2");

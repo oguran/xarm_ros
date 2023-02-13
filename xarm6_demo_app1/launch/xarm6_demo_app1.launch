@@ -3,6 +3,7 @@
   <!-- By default, we are not in debug mode -->
   <arg name="debug" default="false" />
   <arg name="velocity_control" default="false" />
+  <arg name="plan_confirm" default="false" />
 
   <!-- GDB Debug Option -->
   <arg unless="$(arg debug)" name="launch_prefix" value="" />
@@ -11,6 +12,7 @@
 
   <node name="xarm6_demo_app1_node" pkg="xarm6_demo_app1" type="xarm6_demo_app1_node" respawn="false" launch-prefix="$(arg launch_prefix)" output="screen">
     <param name="velocity_control" value="$(eval 'true' if arg('velocity_control') else 'false')"/>
+    <param name="plan_confirm" value="$(eval 'true' if arg('plan_confirm') else 'false')"/>
   </node>
 
 </launch>

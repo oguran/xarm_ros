@@ -18,6 +18,7 @@ int main(int argc, char** argv)
 {
   static const std::string MY_NODE_NAME = "xarm6_demo_app1_node";
   static const std::string PARAM_VELCTL = "/" + MY_NODE_NAME + "/velocity_control";
+  static const std::string PARAM_PLANCONFIRM = "/" + MY_NODE_NAME + "/plan_confirm";
   static const std::string PLANNING_GROUP = "xarm6";
   ros::init(argc, argv, MY_NODE_NAME);
   ros::NodeHandle node_handle;
@@ -25,16 +26,18 @@ int main(int argc, char** argv)
   ros::AsyncSpinner spinner(10);
   spinner.start();
 
-  bool plan_confirm = true;
-
   if(!node_handle.hasParam(PARAM_VELCTL))
   {
     ROS_ERROR("No velocity_control parameter specified!");
     exit(-1);
   }
+
   bool velctl = false;
+  bool plan_confirm = false;
   node_handle.getParam(PARAM_VELCTL, velctl);
+  node_handle.getParam(PARAM_PLANCONFIRM, plan_confirm);
   ROS_INFO("param velocity_control = %s", velctl ? "true" : "false");
+  ROS_INFO("param plan_confirm = %s", plan_confirm ? "true" : "false");
 
   robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
   robot_model::RobotModelPtr kinematic_model =  robot_model_loader.getModel();
