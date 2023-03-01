@@ -8,6 +8,13 @@
   <xacro:arg name="effort_control_gripper" default="false"/>
   <xacro:arg name="velocity_control_gripper" default="false"/>
 
+  <!-- For d435 -->
+  <xacro:arg name="use_nominal_extrinsics" default="false"/>
+  <xacro:arg name="add_plug" default="false" />
+  <xacro:arg name="use_mesh" default="true" />
+  <xacro:arg name="topics_ns" default="camera" />
+  <xacro:arg name="publish_pointcloud" default="true" />
+
   <!-- load xarm6 robot -->
   <xacro:include filename="$(find xarm_description)/urdf/xarm6_robot_macro.xacro" />
   
@@ -15,8 +22,11 @@
   <xacro:include filename="$(find xarm_gripper)/urdf/xarm_gripper_model.xacro" />
 
   <!-- Attach realsense --> 
-  <xacro:include filename="$(find realsense2_description)/urdf/xarm_d435_camera.urdf.xacro" />
+  <xacro:include filename="$(find realsense2_description)/urdf/_d435.urdf.xacro" />
 
   <xacro:xarm6_robot prefix="$(arg prefix)" namespace="$(arg ros_namespace)" limited="$(arg limited)" />
   <xacro:load_gripper attach_to="$(arg prefix)link_eef" />
+  <xacro:sensor_d435 parent="$(arg prefix)link_eef" use_nominal_extrinsics="$(arg use_nominal_extrinsics)" add_plug="$(arg add_plug)" use_mesh="$(arg use_mesh)" topics_ns="$(arg topics_ns)" publish_pointcloud="$(arg publish_pointcloud)" >
+    <origin xyz="0.055 0 0.012" rpy="0 ${-pi/2} ${pi}"/>
+  </xacro:sensor_d435>
 </robot>
