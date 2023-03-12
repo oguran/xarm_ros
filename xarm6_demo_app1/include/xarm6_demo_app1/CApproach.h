@@ -31,6 +31,7 @@ class CApproach {
 
     bool DoApproach_2(bool plan_confirm);
     bool DoApproachRotation_2(bool plan_confirm);
+    bool DoApproachRotation_3(bool plan_confirm);
 
     const unsigned int PREGRASP_POSE = 0;
     const unsigned int GRASP_POSE = 1;
