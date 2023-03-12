@@ -12,6 +12,7 @@
 #include <control_msgs/GripperCommandAction.h>
 #include <mutex>
 #include <eigen_stl_containers/eigen_stl_vector_container.h>
+#include <xarm_gripper/MoveAction.h>
 
 #include <xarm6_demo_app1/CObjListManager.h>
 
@@ -28,12 +29,17 @@ class CApproach {
     bool DoApproach(bool plan_confirm);
     bool DoApproachRotation(bool plan_confirm);
 
+    bool DoApproach_2(bool plan_confirm);
+    bool DoApproachRotation_2(bool plan_confirm);
+
     const unsigned int PREGRASP_POSE = 0;
     const unsigned int GRASP_POSE = 1;
     const unsigned int POSTGRASP_POSE = 2;
 
     const float PREGRASP_DISTANCE = 0.20f;
+    const float PREGRASP_OFFSET_X = -0.06f;
 
+    geometry_msgs::PoseStamped cognition_pose_2nd;
     geometry_msgs::PoseStamped approached_link_eef_pose_;
     geometry_msgs::PoseStamped approached_link_tcp_pose_;
     geometry_msgs::PoseStamped grasp_pose_[3]; // 0:pre-grasp, 1:grasp, 2:post-grasp
@@ -46,9 +52,10 @@ class CApproach {
     const std::string COGNITION_POSE = "cognition_pose";
     const std::string NAMED_POSE_HOME = "home";
     const unsigned int AVERAGE_SAMPLING_RATE = 5U;
-    const int AVERAGE_SAMPLING_SIZE = 10;
+    const int AVERAGE_SAMPLING_SIZE = 30;
 
     actionlib::SimpleActionClient<control_msgs::GripperCommandAction> gripper_;
+    actionlib::SimpleActionClient<xarm_gripper::MoveAction> xarm_gripper_;
     ros::Publisher pub_marker_target_1st_;
     ros::Publisher pub_marker_target_2nd_;
     ros::Publisher pub_marker_target_3rd_;
@@ -63,6 +70,7 @@ class CApproach {
     CObjListManager& olm;
 
     std::string robot_base_frame_;
+    std::string camera_frame_;
     robot_model_loader::RobotModelLoader robot_model_loader_;
 };
 

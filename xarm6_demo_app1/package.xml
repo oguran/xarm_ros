@@ -14,14 +14,16 @@
 
   <!-- The *depend tags are used to specify dependencies -->
   <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>moveit_core</build_depend>
+  <build_depend>moveit_visual_tools</build_depend>
+  <build_depend>moveit_ros_planning_interface</build_depend>
+  <build_depend>interactive_markers</build_depend>
+
+<!--
   <build_depend>pluginlib</build_depend>
   <build_depend>eigen</build_depend>
-  <build_depend>moveit_core</build_depend>
-  <build_depend>moveit_ros_planning_interface</build_depend>
   <build_depend>moveit_ros_perception</build_depend>
-  <build_depend>interactive_markers</build_depend>
   <build_depend>geometric_shapes</build_depend>
-  <build_depend>moveit_visual_tools</build_depend>
   <build_depend>pcl_ros</build_depend>
   <build_depend>pcl_conversions</build_depend>
   <build_depend>rosbag</build_depend>
@@ -29,6 +31,8 @@
   <build_depend>tf2_eigen</build_depend>
   <build_depend>tf2_geometry_msgs</build_depend>
   <build_depend>srecog_msgs</build_depend>
+  <build_depend>xarm_gripper</build_depend>
+-->
 
   <exec_depend>xarm6_moveit_config</exec_depend>
   <exec_depend>pluginlib</exec_depend>
@@ -48,6 +52,7 @@
   <exec_depend>tf2_geometry_msgs</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>srecog_msgs</exec_depend>
+  <exec_depend>xarm_gripper</exec_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->
