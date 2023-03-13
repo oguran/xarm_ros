@@ -59,24 +59,22 @@ int main(int argc, char** argv)
 #if 0
   aprch.DoApproach(plan_confirm);
 
-  aprch.DoApproachRotation(plan_confirm);
+  bool approached = aprch.DoApproachRotation(plan_confirm);
 #else
-  aprch.DoApproach_2(plan_confirm);
-
-  aprch.DoApproachRotation_3(plan_confirm);
+  bool approached = aprch.DoApproachFinal(plan_confirm);
 #endif
 
-#if 1
-  CGrasp grasp(node_handle, olm, aprch);
+  if (approached) {
+    CGrasp grasp(node_handle, olm, aprch);
 
-  if (velctl) {
-    grasp.PickVelocity();
-  } else {
-    grasp.PreGraspCartesian(CGrasp::E_CTRL_TYPE::Position);
-    grasp.Grasp();
-    grasp.PostGraspCartesian(CGrasp::E_CTRL_TYPE::Position);
+    if (velctl) {
+      grasp.PickVelocity();
+    } else {
+      grasp.PreGraspCartesian(CGrasp::E_CTRL_TYPE::Position);
+      grasp.Grasp();
+      grasp.PostGraspCartesian(CGrasp::E_CTRL_TYPE::Position);
+    }
   }
-#endif
 
 #else // Test Code
 

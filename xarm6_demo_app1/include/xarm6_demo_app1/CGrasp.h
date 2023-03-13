@@ -76,6 +76,7 @@ class CGrasp {
     const float CAR_CTL_VEL_R = 2.0;
     const std::string CAR_CTL_EEF_LINK = "link_tcp";
     const double GRASP_OFFSET = 0.05; //< Graspする際にlink_tcpからカメラ座標のz+方向にオフセットさせる距離
+    const float POSTGRASP_DISTANCE = 0.20f;
 
     ros::NodeHandle& node_handle;
     CObjListManager& olm;

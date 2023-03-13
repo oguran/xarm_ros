@@ -122,7 +122,8 @@ bool CGrasp::PostGraspCartesian(E_CTRL_TYPE ctrl_type) {
   transformTFStampedToPoseStamped(tfs_linktcp_on_fixed_frame, ps_goal_on_fixed_frame);
 
   // 現在の姿勢のままアプローチ座標に戻る
-  ps_goal_on_fixed_frame.pose.position = aprch.approached_link_eef_pose_.pose.position;
+  //ps_goal_on_fixed_frame.pose.position = aprch.approached_link_eef_pose_.pose.position;
+  ps_goal_on_fixed_frame.pose.position.z += POSTGRASP_DISTANCE;
   if (ctrl_type == E_CTRL_TYPE::Position) {
     pub_arm_cartesian_.publish(ps_goal_on_fixed_frame);
   } else if (ctrl_type == E_CTRL_TYPE::Velocity) {
