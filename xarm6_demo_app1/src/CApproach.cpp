@@ -2,8 +2,9 @@
 #include <xarm6_demo_app1/Utility.h>
 #include <xarm6_demo_app1/CMovingAveragePose.h>
 #include <math.h>
+#include <boost/format.hpp>
 
-#define XARM_GRIPPER
+//#define XARM_GRIPPER
 
 CApproach::CApproach(ros::NodeHandle& node_handle, CObjListManager& olm, const std::string model_frame, std::string planning_group)
   : robot_base_frame_(model_frame),
@@ -1100,6 +1101,12 @@ bool CApproach::DoApproachFinal(bool plan_confirm) {
     ROS_INFO("MoveToPreGrasp1 plan (pose goal) %s", success ? "" : "FAILED");
 
     if (success) break; // Planが成功したら抜ける
+    else {
+      if (plan_confirm) {
+        const std::string s = (boost::format("Tried[%1%] pose") % i ).str();
+        visual_tools.publishAxisLabeled(ps_camera_on_fixed_frame.pose, s);
+      }
+    }
   }
 
   olm.disablePublishTargetTF();
@@ -1111,7 +1118,7 @@ bool CApproach::DoApproachFinal(bool plan_confirm) {
 
   if (plan_confirm) {
     ROS_INFO("MoveToPreGrasp1 plan as trajectory line");
-    visual_tools.deleteAllMarkers();
+    //visual_tools.deleteAllMarkers();
     visual_tools.publishAxisLabeled(ps_camera_on_fixed_frame.pose, "pregrasp_pose");
     visual_tools.publishText(text_pose, "Moving to pregrasp pose.", rvt::WHITE, rvt::XLARGE);
     visual_tools.publishTrajectoryLine(plan.trajectory_, joint_model_group);
