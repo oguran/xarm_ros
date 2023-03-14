@@ -1,14 +1,20 @@
 #include <xarm6_demo_app1/CGrasp.h>
 #include <xarm6_demo_app1/Utility.h>
 
+#define XARM_GRIPPER
+
 CGrasp::CGrasp(ros::NodeHandle& node_handle, CObjListManager& olm, CApproach& aprch)
     : gripper_("/xarm/gripper_controller/gripper_cmd", "true"),
+    xarm_gripper_("xarm/gripper_move", "true"),
     node_handle(node_handle),
     olm(olm),
     aprch(aprch) {
         // 座標系をロボットのベースに基づいた「FIXED_FRAME」座標系を使う。
-        gripper_.waitForServer();
-
+#if defined(XARM_GRIPPER)
+	    xarm_gripper_.waitForServer();
+#else
+	    gripper_.waitForServer();
+#endif
         pub_arm_cartesian_ = node_handle.advertise<geometry_msgs::PoseStamped>("/xarm/xarm6_cartesian_motion_controller/goal", 1);
         pub_arm_cartesian_vel_ = node_handle.advertise<geometry_msgs::PoseStamped>("/xarm/xarm6_cartesian_motion_controller_velocity/goal", 1);
         pub_marker_target_grasp_= node_handle.advertise<visualization_msgs::Marker>("marker_target_grasp", 1);
@@ -84,6 +90,7 @@ bool CGrasp::PreGraspCartesian(E_CTRL_TYPE ctrl_type) {
     return false;
   }
   ros::Duration(10).sleep();
+  //ros::Duration(50).sleep();
   ROS_INFO("Moved to grasping pose");
 
   return true;
@@ -92,15 +99,27 @@ bool CGrasp::PreGraspCartesian(E_CTRL_TYPE ctrl_type) {
 bool CGrasp::Grasp() {
 
   ROS_INFO("Start Grasp");
+#if defined(XARM_GRIPPER)
+  xarm_gripper::MoveGoal goal;
+  goal.target_pulse = 300;
+  goal.pulse_speed = 1500;
+  xarm_gripper_.sendGoal(goal);
+  bool finishedBeforeTimeout = xarm_gripper_.waitForResult(ros::Duration(3));
+  if (finishedBeforeTimeout) {
+    ROS_WARN("xarm_gripper_ grasp action did not complete");
+    xarm_gripper_.cancelAllGoals();
+  }
+#else
   control_msgs::GripperCommandGoal goal;
   goal.command.position = 0.5;
   goal.command.max_effort = 10;
   gripper_.sendGoal(goal);
   bool finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(3));
   if (!finishedBeforeTimeout) {
-    ROS_WARN("gripper_ open action did not complete");
+    ROS_WARN("gripper_ grasp action did not complete");
     return false;
   }
+#endif
   ROS_INFO("Grasped");
 
   return true;

@@ -55,7 +55,7 @@ class CApproach {
     const std::string COGNITION_POSE = "cognition_pose";
     const std::string NAMED_POSE_HOME = "home";
     const unsigned int AVERAGE_SAMPLING_RATE = 5U;
-    const int AVERAGE_SAMPLING_SIZE = 30;
+    const int AVERAGE_SAMPLING_SIZE = 3;
 
     actionlib::SimpleActionClient<control_msgs::GripperCommandAction> gripper_;
     actionlib::SimpleActionClient<xarm_gripper::MoveAction> xarm_gripper_;

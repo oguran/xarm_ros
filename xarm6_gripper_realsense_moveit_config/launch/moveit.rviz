@@ -10,9 +10,12 @@ Panels:
     Help Height: 70
     Name: Displays
     Property Tree Widget:
-      Expanded: ~
+      Expanded:
+        - /MotionPlanning1
+        - /MotionPlanning1/Scene Geometry1
+        - /TF1/Frames1
       Splitter Ratio: 0.5
-    Tree Height: 711
+    Tree Height: 707
   - Class: rviz_visual_tools/RvizVisualToolsGui
     Name: RvizVisualToolsGui
 Toolbars:
@@ -233,7 +236,7 @@ Visualization Manager:
         Scene Alpha: 1
         Scene Color: 50; 230; 50
         Scene Display Time: 0.200000003
-        Show Scene Geometry: true
+        Show Scene Geometry: false
         Voxel Coloring: Z-Axis
         Voxel Rendering: Occupied Voxels
       Scene Robot:
@@ -533,7 +536,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -546,21 +549,21 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.00100000005
       Style: Flat Squares
-      Topic: /move_group/filtered_cloud
+      Topic: /camera/depth/color/points
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Class: rviz/Camera
-      Enabled: false
+      Enabled: true
       Image Rendering: background and overlay
-      Image Topic: /camera/color/image_raw
+      Image Topic: /posecnn_pose_refined_00
       Name: Camera
       Overlay Alpha: 0.5
       Queue Size: 2
       Transport Hint: raw
       Unreliable: false
-      Value: false
+      Value: true
       Visibility:
         Grid: true
         MarkerArray: true
@@ -572,28 +575,144 @@ Visualization Manager:
         Value: false
       Zoom Factor: 1
     - Class: rviz/TF
-      Enabled: false
+      Enabled: true
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        camera_accel_frame:
+          Value: false
+        camera_accel_optical_frame:
+          Value: false
+        camera_aligned_depth_to_color_frame:
+          Value: false
+        camera_bottom_screw_frame:
+          Value: false
+        camera_color_frame:
+          Value: false
+        camera_color_optical_frame:
+          Value: false
+        camera_depth_frame:
+          Value: false
+        camera_depth_optical_frame:
+          Value: false
+        camera_gyro_frame:
+          Value: false
+        camera_gyro_optical_frame:
+          Value: false
+        camera_infra1_frame:
+          Value: false
+        camera_infra1_optical_frame:
+          Value: false
+        camera_infra2_frame:
+          Value: false
+        camera_infra2_optical_frame:
+          Value: false
+        camera_link:
+          Value: false
+        camera_usb_plug_link:
+          Value: false
+        left_finger:
+          Value: false
+        left_inner_knuckle:
+          Value: false
+        left_outer_knuckle:
+          Value: false
+        link1:
+          Value: false
+        link2:
+          Value: false
+        link3:
+          Value: false
+        link4:
+          Value: false
+        link5:
+          Value: false
+        link6:
+          Value: false
+        link_base:
+          Value: false
+        link_eef:
+          Value: false
+        link_tcp:
+          Value: false
+        measured/camera_color_optical_frame:
+          Value: false
+        posecnn/00_potted_meat_can_01:
+          Value: false
+        posecnn/00_potted_meat_can_01_refined:
+          Value: false
+        posecnn/00_potted_meat_can_01_roi:
+          Value: false
+        right_finger:
+          Value: false
+        right_inner_knuckle:
+          Value: false
+        right_outer_knuckle:
+          Value: false
+        world:
+          Value: false
+        xarm_gripper_base_link:
+          Value: false
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: true
       Tree:
-        {}
+        world:
+          link_base:
+            link1:
+              link2:
+                link3:
+                  link4:
+                    link5:
+                      link6:
+                        link_eef:
+                          camera_bottom_screw_frame:
+                            camera_link:
+                              camera_accel_frame:
+                                camera_accel_optical_frame:
+                                  {}
+                              camera_aligned_depth_to_color_frame:
+                                camera_color_optical_frame:
+                                  {}
+                              camera_color_frame:
+                                {}
+                              camera_depth_frame:
+                                camera_depth_optical_frame:
+                                  {}
+                              camera_gyro_frame:
+                                camera_gyro_optical_frame:
+                                  {}
+                              camera_infra1_frame:
+                                camera_infra1_optical_frame:
+                                  {}
+                              camera_infra2_frame:
+                                camera_infra2_optical_frame:
+                                  {}
+                              camera_usb_plug_link:
+                                {}
+                          xarm_gripper_base_link:
+                            left_inner_knuckle:
+                              {}
+                            left_outer_knuckle:
+                              left_finger:
+                                {}
+                            link_tcp:
+                              {}
+                            right_inner_knuckle:
+                              {}
+                            right_outer_knuckle:
+                              right_finger:
+                                {}
       Update Interval: 0
-      Value: false
+      Value: true
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /rviz_visual_tools
       Name: MarkerArray
       Namespaces:
-        Cylinder: true
-        Sphere: true
-        Text: true
-        cognition_pose: true
+        {}
       Queue Size: 100
       Value: true
     - Attached Body Color: 150; 50; 150
@@ -645,17 +764,17 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.264796555
+      Pitch: 0.134796545
       Target Frame: world
       Value: XYOrbit (rviz)
-      Yaw: 6.27993393
+      Yaw: 0.0117485616
     Saved: ~
 Window Geometry:
   Camera:
     collapsed: false
   Displays:
     collapsed: false
-  Height: 991
+  Height: 1375
   Help:
     collapsed: false
   Hide Left Dock: false
@@ -664,11 +783,11 @@ Window Geometry:
     collapsed: false
   MotionPlanning - Trajectory Slider:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000100000000000001640000038bfc020000000cfb0000000800480065006c00700000000342000000bb0000006e00fffffffb0000000a00560069006500770073000000032d000000b00000009e00fffffffb0000000c00430061006d006500720061000000003a0000038b0000001600fffffffb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000003e00fffffffb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e0067000000003a0000038b0000016b00fffffffb0000000c00430061006d006500720061000000032a000000a60000000000000000fb0000000c00430061006d0065007200610100000494000000c30000000000000000fb000000280020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000000000000000fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e00670100000267000001760000000000000000fb000000100044006900730070006c006100790073010000003a00000347000000c600fffffffb00000024005200760069007a00560069007300750061006c0054006f006f006c007300470075006901000003870000003e0000003e00ffffff000002af0000038b00000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000100000000000001c20000050bfc020000000cfb0000000800480065006c00700000000342000000bb0000006e00fffffffb0000000a00560069006500770073000000032d000000b00000009e00fffffffb0000000c00430061006d006500720061010000003a000001640000001600fffffffb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000003e00fffffffb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e0067000000003a0000038b0000016b00fffffffb0000000c00430061006d006500720061000000032a000000a60000000000000000fb0000000c00430061006d0065007200610100000494000000c30000000000000000fb000000280020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000000000000000fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e00670100000267000001760000000000000000fb000000100044006900730070006c00610079007301000001a400000343000000c600fffffffb00000024005200760069007a00560069007300750061006c0054006f006f006c007300470075006901000004ed000000580000003e00ffffff000003410000050b00000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   RvizVisualToolsGui:
     collapsed: false
   Views:
     collapsed: false
-  Width: 1049
-  X: 852
-  Y: 0
+  Width: 1289
+  X: 1266
+  Y: 28

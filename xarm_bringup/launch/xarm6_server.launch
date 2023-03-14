@@ -22,6 +22,32 @@
     <arg name="velocity_control" value="$(arg velocity_control)" />
   </include>
 
+  <!-- Load the position controllers -->
+  <rosparam file="$(find xarm_controller)/config/xarm6_position_controllers.yaml" command="load"/>
+  <node unless="$(eval arg('velocity_control'))"
+    name="position_controller_spawner"
+    pkg="controller_manager"
+    type="spawner"
+    respawn="false"
+    output="screen"
+    ns="/$(arg ns)"
+    args="--stopped
+          joint1_position_controller joint2_position_controller
+          joint3_position_controller joint4_position_controller
+          joint5_position_controller joint6_position_controller
+          "/>
+
+  <!-- Load cartesian controller -->
+  <rosparam file="$(find xarm_controller)/config/xarm6_cartesian_controller.yaml" command="load"></rosparam>
+  <arg name="xarm_cartesian_motion_controller" value="$(eval 'xarm6_cartesian_motion_controller_velocity' if arg('velocity_control') else 'xarm6_cartesian_motion_controller')" />
+  <node name="cartesian_controller_spawner"
+    pkg="controller_manager"
+    type="spawner"
+    respawn="false"
+    output="screen"
+    ns="$(arg ns)"
+    args="--stopped $(arg xarm_cartesian_motion_controller)"/>
+
   <!-- the node for xarm gripper action server -->
   <node if="$(arg use_gripper_action)"
     name="gripper_action_server"

@@ -64,6 +64,7 @@ class CGrasp {
 
 
     actionlib::SimpleActionClient<control_msgs::GripperCommandAction> gripper_;
+    actionlib::SimpleActionClient<xarm_gripper::MoveAction> xarm_gripper_;
     ros::Publisher pub_arm_cartesian_;
     ros::Publisher pub_arm_cartesian_vel_;
     ros::Publisher pub_marker_target_grasp_;

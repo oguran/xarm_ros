@@ -51,19 +51,20 @@ int main(int argc, char** argv)
 #if 1 // Demo Code
 
   CApproach aprch(node_handle, olm, robot_model_frame, PLANNING_GROUP);
-  aprch.MoveToHomePose(plan_confirm);
+  //aprch.MoveToHomePose(plan_confirm);
   aprch.MoveToCognitionPose(plan_confirm);
 
   aprch.ObjPoseCognition();
 
 #if 0
-  aprch.DoApproach(plan_confirm);
+  aprch.DoApproach_2(plan_confirm);
 
-  bool approached = aprch.DoApproachRotation(plan_confirm);
+  bool approached = aprch.DoApproachRotation_2(plan_confirm);
 #else
   bool approached = aprch.DoApproachFinal(plan_confirm);
 #endif
 
+#if 1
   if (approached) {
     CGrasp grasp(node_handle, olm, aprch);
 
@@ -75,6 +76,7 @@ int main(int argc, char** argv)
       grasp.PostGraspCartesian(CGrasp::E_CTRL_TYPE::Position);
     }
   }
+#endif
 
 #else // Test Code
 

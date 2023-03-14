@@ -4,7 +4,7 @@
 #include <math.h>
 #include <boost/format.hpp>
 
-//#define XARM_GRIPPER
+#define XARM_GRIPPER
 
 CApproach::CApproach(ros::NodeHandle& node_handle, CObjListManager& olm, const std::string model_frame, std::string planning_group)
   : robot_base_frame_(model_frame),
@@ -936,6 +936,27 @@ bool CApproach::DoApproachRotation_3(bool plan_confirm) {
 }
 
 bool CApproach::DoApproachFinal(bool plan_confirm) {
+  ROS_INFO("Open gripper");
+#if defined(XARM_GRIPPER)
+  xarm_gripper::MoveGoal goal;
+  goal.target_pulse = 850;
+  xarm_gripper_.sendGoal(goal);
+  bool finishedBeforeTimeout = xarm_gripper_.waitForResult(ros::Duration(3));
+  if (finishedBeforeTimeout) {
+    ROS_WARN("xarm_gripper_ open action did not complete");
+    xarm_gripper_.cancelAllGoals();
+  }
+#else
+  control_msgs::GripperCommandGoal goal;
+  goal.command.position = 0.0;
+  gripper_.sendGoal(goal);
+  bool finishedBeforeTimeout = gripper_.waitForResult(ros::Duration(3));
+  if (!finishedBeforeTimeout) {
+    ROS_WARN("gripper_open action did not complete");
+    gripper_.cancelAllGoals();
+  }
+#endif
+
   ROS_INFO("Rotation");
   size_t approaching_pattern_num = 0;
   geometry_msgs::PoseStamped target_obj_pose_on_camera, camera_pose_on_camera, camera_pose_on_target;
